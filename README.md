@@ -1,1 +1,1 @@
-# mentat
+# Control: personal management system
