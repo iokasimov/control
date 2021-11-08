@@ -12,6 +12,9 @@ import "transformers" Control.Monad.Trans.State (StateT, evalStateT, get, modify
 
 import qualified "text" Data.Text.IO as T (putStrLn)
 
+import Control.SQL.Query (start_objective_event, get_just_created_event, end_objective_event 
+	, today_time_query, all_unfinished_events, timeline_today_events_query)
+
 data Objective = Objective Int Text deriving (Eq, Show)
 
 instance FromRow Objective where
@@ -35,27 +38,6 @@ data Period = Period String String deriving Show
 
 instance FromRow Period where
 	fromRow = Period <$> field <*> field
-
-today_time_query :: Query
-today_time_query = 
-	"SELECT title, strftime('%H:%M', datetime(SUM (end - start), 'unixepoch')) \
-	\FROM events JOIN objectives on events.objective_id = objectives.id \
-	\WHERE start > strftime('%s', date('now')) AND end IS NOT NULL \
-	\GROUP BY objective_id;"
-
-all_unfinished_events :: Query
-all_unfinished_events =
-	"SELECT id, title, event_id, strftime('%H:%M', start, 'unixepoch', 'localtime') \
-	\FROM events join objectives ON objectives.id = events.objective_id \
-	\WHERE end IS NULL;"
-
-timeline_today_events_query :: Query
-timeline_today_events_query =
-	"SELECT title, strftime('%H:%M', start, 'unixepoch', 'localtime'), \
-	\IFNULL(strftime('%H:%M', end, 'unixepoch', 'localtime'), '..:..'), \
-	\strftime('%H:%M', IFNULL(end, strftime('%s', datetime('now'))) - start,'unixepoch') \
-	\FROM events JOIN objectives on events.objective_id = objectives.id \
-	\WHERE start > strftime('%s', date('now')) AND start < strftime('%s', date('now', '+1 day'));"
 
 print_timeline :: [(Text, Text, Text, Text)] -> IO ()
 print_timeline = void . traverse (T.putStrLn . prepare) where
@@ -108,14 +90,12 @@ loop = prompt >>= \case
 		Nothing -> wrong "No focused objective..."
 		Just (Objective id title) -> do
 			connection <- lift . lift $ open "facts.db"
-			lift . lift $ execute connection "INSERT INTO events (objective_id, start) VALUES (?, strftime('%s', 'now'))" $ Only id
-			r <- lift . lift $ query connection "SELECT event_id, strftime('%H:%M', start, 'unixepoch', 'localtime') FROM events WHERE objective_id = ? AND end IS NULL ORDER BY event_id DESC" $ Only id
+			lift . lift $ execute connection start_objective_event $ Only id
+			r <- lift . lift $ query connection get_just_created_event $ Only id
 			case r of
 				[] -> wrong "ERROR: No such an event..."
 				((event_id, start) : _) -> do
 					lift $ modify $ over _1 ((Objective id title, event_id, start) :)
-					--void prompt
-					--lift $ modify (const Nothing <$$>)
 			loop
 	Just "end" -> lift get >>= \case
 		(_, Nothing) -> wrong "No focused objective..."
@@ -124,7 +104,7 @@ loop = prompt >>= \case
 	 			Nothing -> wrong "Objective is not started"
 				Just (Objective id _, event_id, start) -> do
 					connection <- lift . lift $ open "facts.db"
-					lift . lift $ execute connection "UPDATE events SET end = strftime('%s', datetime('now')) WHERE objective_id = ? AND end IS NULL" $ Only id
+					lift . lift $ execute connection end_objective_event $ Only id
 					lift . modify $ over _1 (delete (obj, event_id, start))
 					loop
 	Just _ -> wrong "Undefined command" *> loop
