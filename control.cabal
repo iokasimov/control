@@ -1,0 +1,21 @@
+name:                control
+version:             0.1.0
+synopsis:            ...
+description:         ...
+homepage:            https://github.com/iokasimov/control
+license:             MIT
+license-file:        LICENSE
+extra-source-files:  CHANGELOG.md
+author:              Murat Kasimov
+maintainer:          Murat Kasimov <iokasimov.m@gmail.com>
+copyright:           Copyright (c) 2021 Murat Kasimov
+category:            cli
+build-type:          Simple
+cabal-version:       >= 1.10
+
+executable control
+  main-is: REPL.hs
+  other-modules:
+  build-depends: base == 4.*, joint, transformers, text, time, sqlite-simple, haskeline
+  default-extensions: FlexibleInstances, LambdaCase, OverloadedStrings, TypeApplications, TypeOperators, PackageImports
+  ghc-options: -Wall -fno-warn-tabs
