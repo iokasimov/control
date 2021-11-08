@@ -1,9 +1,3 @@
-{-# LANGUAGE PackageImports #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE LambdaCase #-}
-
 import "base" Control.Monad (void)
 import "base" Data.List (delete, find)
 import "base" Text.Read (readMaybe)
