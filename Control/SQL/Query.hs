@@ -2,6 +2,20 @@ module Control.SQL.Query where
 
 import "sqlite-simple" Database.SQLite.Simple (Query)
 
+start_objective_event :: Query
+start_objective_event = 
+	"INSERT INTO events (objective_id, start) VALUES (?, strftime('%s', 'now'))"
+
+get_just_created_event :: Query
+get_just_created_event = 
+	"SELECT event_id, strftime('%H:%M', start, 'unixepoch', 'localtime') \
+	\FROM events WHERE objective_id = ? AND end IS NULL ORDER BY event_id DESC"
+
+end_objective_event :: Query
+end_objective_event = 
+	"UPDATE events SET end = strftime('%s', datetime('now')) \
+	\WHERE objective_id = ? AND end IS NULL"
+
 today_time_query :: Query
 today_time_query = 
 	"SELECT title, strftime('%H:%M', datetime(SUM (end - start), 'unixepoch')) \
