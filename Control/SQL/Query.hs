@@ -36,3 +36,10 @@ timeline_today_events_query =
 	\strftime('%H:%M', IFNULL(end, strftime('%s', datetime('now'))) - start,'unixepoch') \
 	\FROM events JOIN objectives on events.objective_id = objectives.id \
 	\WHERE start > strftime('%s', date('now')) AND start < strftime('%s', date('now', '+1 day'));"
+
+available_tasks_query :: Query
+available_tasks_query =
+	"SELECT status, title, strftime('%H:%M', available, 'unixepoch', 'localtime'), \
+	\strftime('%H:%M', deadline, 'unixepoch', 'localtime') \
+	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
+	\WHERE available <= strftime('%s', 'now') AND deadline >= strftime('%s', 'now');"
