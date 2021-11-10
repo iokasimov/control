@@ -12,7 +12,7 @@ get_just_created_event =
 	\FROM events WHERE objective_id = ? AND end IS NULL ORDER BY event_id DESC"
 
 end_objective_event :: Query
-end_objective_event = 
+end_objective_event =
 	"UPDATE events SET end = strftime('%s', datetime('now')) \
 	\WHERE objective_id = ? AND end IS NULL"
 
@@ -25,7 +25,7 @@ today_time_query =
 
 all_unfinished_events :: Query
 all_unfinished_events =
-	"SELECT id, title, event_id, strftime('%H:%M', start, 'unixepoch', 'localtime') \
+	"SELECT id, interest, behaviour, repeat, title, event_id, strftime('%H:%M', start, 'unixepoch', 'localtime') \
 	\FROM events join objectives ON objectives.id = events.objective_id \
 	\WHERE end IS NULL;"
 
