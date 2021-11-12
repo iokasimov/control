@@ -2,6 +2,12 @@ module Control.SQL.Query where
 
 import "sqlite-simple" Database.SQLite.Simple (Query)
 
+start_of_today, start_of_tomorrow, end_of_today, end_of_tomorrow :: Query
+start_of_today = "(strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400))"
+start_of_tomorrow = "(strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) + 86400"
+end_of_today = "(strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) + 86399"
+end_of_tomorrow = "(strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) + 86400 + 86399"
+
 start_objective_event :: Query
 start_objective_event = 
 	"INSERT INTO events (objective_id, start) VALUES (?, strftime('%s', 'now'))"
@@ -20,7 +26,7 @@ today_time_query :: Query
 today_time_query = 
 	"SELECT title, strftime('%H:%M', datetime(SUM (stop - start), 'unixepoch')) \
 	\FROM events JOIN objectives on events.objective_id = objectives.id \
-	\WHERE start > strftime('%s', date('now')) AND stop IS NOT NULL \
+	\WHERE start > " <> start_of_today <> " AND stop IS NOT NULL \
 	\GROUP BY objective_id;"
 
 all_unfinished_events :: Query
@@ -35,17 +41,17 @@ timeline_today_events_query =
 	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), '..:..'), \
 	\strftime('%H:%M', IFNULL(stop, strftime('%s', datetime('now'))) - start, 'unixepoch') \
 	\FROM events JOIN objectives on events.objective_id = objectives.id \
-	\WHERE start > strftime('%s', date('now')) AND stop < strftime('%s', date('now', '+1 day'));"
+	\WHERE start > " <> start_of_today <> " AND IFNULL(stop < " <> start_of_tomorrow <> ", 1);"
 
 today_tasks_query :: Query
 today_tasks_query =
 	"SELECT status, title, strftime('%H:%M', start, 'unixepoch', 'localtime'), strftime('%H:%M', stop, 'unixepoch', 'localtime') \
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
-	\WHERE start < (strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) + 86399;"
+	\WHERE start < " <> end_of_today <> ";"
 
 tomorrow_tasks_query :: Query
 tomorrow_tasks_query =
 	"SELECT status, title, strftime('%H:%M', start, 'unixepoch', 'localtime'), strftime('%H:%M', stop, 'unixepoch', 'localtime') \
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
-	\WHERE status = 1 AND start >= (strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) + 86400 AND stop <= (strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) + 86400 + 86399 \
+	\WHERE status = 1 AND start >= " <> start_of_tomorrow <> " AND stop <= " <> end_of_tomorrow <> " \
 	\ORDER BY start;"
