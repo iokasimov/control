@@ -13,7 +13,7 @@ import "transformers" Control.Monad.Trans.State (StateT, evalStateT, get, modify
 import qualified "text" Data.Text.IO as T (putStrLn)
 
 import Control.SQL.Query (start_objective_event, get_just_created_event, stop_objective_event 
-	, today_time_query, available_tasks_query, all_unfinished_events, timeline_today_events_query)
+	, today_time_query, today_tasks_query, tomorrow_tasks_query, all_unfinished_events, timeline_today_events_query)
 
 data Objective = Objective Int Text deriving (Eq, Show)
 
@@ -46,12 +46,12 @@ print_timeline = void . traverse (T.putStrLn . prepare) where
 		" ├─ " <> start <> "-" <> stop <> " (" <> amount <> ") " <> title
 
 print_task :: (Int, Text, Maybe Text, Maybe Text) -> IO ()
-print_task (-1, title, available, deadline) = print $ "CANCELED" <> " {" <> title <> "} "
-	<> maybe "..:.." id available <> " - " <> maybe "..:.." id deadline
-print_task (0, title, available, deadline) = print $ "DONE" <> " {" <> title <> "} "
-	<> maybe "..:.." id available <> " - " <> maybe "..:.." id deadline
-print_task (1, title, available, deadline) = print $ "TODO" <> " {" <> title <> "} "
-	<> maybe "..:.." id available <> " - " <> maybe "..:.." id deadline
+print_task (-1, title, start, stop) = print $ "[CANCELED] ("
+	<> maybe "..:.." id start <> " - " <> maybe "..:.." id stop <> ") " <> title <> " "
+print_task (0, title, start, stop) = print $ "[DONE] ("
+	<> maybe "..:.." id start <> " - " <> maybe "..:.." id stop <> ") " <> title <> " "
+print_task (1, title, start, stop) = print $ "[TODO] ("
+	<> maybe "..:.." id start <> " - " <> maybe "..:.." id stop <> ") " <> title <> " "
 
 type Current = ([(Objective, Int, String)], Maybe Objective)
 
@@ -81,9 +81,13 @@ loop = prompt >>= \case
 		connection <- lift . lift $ open "facts.db"
 		lift . lift $ query_ @Period connection today_time_query >>= void . traverse print
 		loop
-	Just "available" -> do
+	Just "today" -> do
 		connection <- lift . lift $ open "facts.db"
-		lift . lift $ query_ @(Int, Text, Maybe Text, Maybe Text) connection available_tasks_query >>= void . traverse print_task
+		lift . lift $ query_ @(Int, Text, Maybe Text, Maybe Text) connection today_tasks_query >>= void . traverse print_task
+		loop
+	Just "tomorrow" -> do
+		connection <- lift . lift $ open "facts.db"
+		lift . lift $ query_ @(Int, Text, Maybe Text, Maybe Text) connection tomorrow_tasks_query >>= void . traverse print_task
 		loop
 	Just "timeline" -> do
 		connection <- lift . lift $ open "facts.db"

@@ -37,9 +37,15 @@ timeline_today_events_query =
 	\FROM events JOIN objectives on events.objective_id = objectives.id \
 	\WHERE start > strftime('%s', date('now')) AND stop < strftime('%s', date('now', '+1 day'));"
 
-available_tasks_query :: Query
-available_tasks_query =
-	"SELECT status, title, strftime('%H:%M', start, 'unixepoch', 'localtime'), \
-	\strftime('%H:%M', stop, 'unixepoch', 'localtime') \
+today_tasks_query :: Query
+today_tasks_query =
+	"SELECT status, title, strftime('%H:%M', start, 'unixepoch', 'localtime'), strftime('%H:%M', stop, 'unixepoch', 'localtime') \
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
-	\WHERE start <= strftime('%s', 'now') AND stop >= strftime('%s', 'now');"
+	\WHERE start < (strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) + 86399;"
+
+tomorrow_tasks_query :: Query
+tomorrow_tasks_query =
+	"SELECT status, title, strftime('%H:%M', start, 'unixepoch', 'localtime'), strftime('%H:%M', stop, 'unixepoch', 'localtime') \
+	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
+	\WHERE status = 1 AND start >= (strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) + 86400 AND stop <= (strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) + 86400 + 86399 \
+	\ORDER BY start;"
