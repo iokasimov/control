@@ -12,16 +12,16 @@ import "transformers" Control.Monad.Trans.State (StateT, evalStateT, get, modify
 
 import qualified "text" Data.Text.IO as T (putStrLn)
 
-import Control.SQL.Query (start_objective_event, get_just_created_event, end_objective_event 
+import Control.SQL.Query (start_objective_event, get_just_created_event, stop_objective_event 
 	, today_time_query, available_tasks_query, all_unfinished_events, timeline_today_events_query)
 
-data Objective = Objective Int Int Int Int Text deriving (Eq, Show)
+data Objective = Objective Int Text deriving (Eq, Show)
 
 instance FromRow Objective where
-	fromRow = Objective <$> field <*> field <*> field <*> field <*> field
+	fromRow = Objective <$> field <*> field
 
 objective_title :: Objective -> Text
-objective_title (Objective _ _ _ _ title) = title
+objective_title (Objective _ title) = title
 
 data Event = Event Int Int Int (Maybe Int) deriving Show
 
@@ -29,7 +29,7 @@ instance FromRow Event where
 	fromRow = Event <$> field <*> field <*> field <*> field
 
 instance {-# OVERLAPS #-} FromRow (Objective, Int, String) where
-	fromRow = (,,) <$> (Objective <$> field <*> field <*> field <*> field <*> field) <*> field <*> field
+	fromRow = (,,) <$> (Objective <$> field <*> field) <*> field <*> field
 
 event_start :: Event -> Int
 event_start (Event _ _ start _) = start
@@ -42,8 +42,8 @@ instance FromRow Period where
 print_timeline :: [(Text, Text, Text, Text)] -> IO ()
 print_timeline = void . traverse (T.putStrLn . prepare) where
 
-	prepare (title, start, end, amount) =
-		" ├─ " <> start <> "-" <> end <> " (" <> amount <> ") " <> title
+	prepare (title, start, stop, amount) =
+		" ├─ " <> start <> "-" <> stop <> " (" <> amount <> ") " <> title
 
 print_task :: (Int, Text, Maybe Text, Maybe Text) -> IO ()
 print_task (-1, title, available, deadline) = print $ "CANCELED" <> " {" <> title <> "} "
@@ -59,7 +59,7 @@ currently_clocking_prompt :: [(Objective, Int, String)] -> IO ()
 currently_clocking_prompt = void . traverse started where
 	
 	started :: (Objective, Int, String) -> IO ()
-	started (Objective id _ _ _ title, _, start) = print
+	started (Objective id title, _, start) = print
 		$ "[" <> start <> " - ...] " <> unpack title
 
 prompt :: InputT (StateT Current IO) (Maybe String)
@@ -75,7 +75,7 @@ loop = prompt >>= \case
 	Just "quit" -> outputStrLn "Bye!"
 	Just "all" -> do
 		connection <- lift . lift $ open "facts.db"
-		lift . lift $ query_ @Objective connection "SELECT * from objectives" >>= void . traverse print
+		lift . lift $ query_ @Objective connection "SELECT id, title from objectives" >>= void . traverse print
 		loop
 	Just "today events" -> do
 		connection <- lift . lift $ open "facts.db"
@@ -93,30 +93,30 @@ loop = prompt >>= \case
 		connection <- lift . lift $ open "facts.db"
 		-- Add new layer in monad transformer stack for handling errors
 		Just objid <- (>>= readMaybe @Int) <$> getInputLine "Mentat > Objective ID ? "
-		lift (lift $ query connection "SELECT * FROM objectives WHERE id = ?" $ Only objid) >>= \case
+		lift (lift $ query connection "SELECT id, title FROM objectives WHERE id = ?" $ Only objid) >>= \case
 			[obj] -> lift $ modify (const (Just obj) <$>)
 			[] -> wrong "No such an objective..."
 		loop
 	Just "unfocus" -> lift (modify (const Nothing <$>)) *> loop
 	Just "start" -> snd <$> lift get >>= \case
 		Nothing -> wrong "No focused objective..."
-		Just (Objective id interest behaviour repeat title) -> do
+		Just (Objective id title) -> do
 			connection <- lift . lift $ open "facts.db"
 			lift . lift $ execute connection start_objective_event $ Only id
 			r <- lift . lift $ query connection get_just_created_event $ Only id
 			case r of
 				[] -> wrong "ERROR: No such an event..."
 				((event_id, start) : _) -> do
-					lift $ modify $ over _1 ((Objective id interest behaviour repeat title, event_id, start) :)
+					lift $ modify $ over _1 ((Objective id title, event_id, start) :)
 			loop
-	Just "end" -> lift get >>= \case
+	Just "stop" -> lift get >>= \case
 		(_, Nothing) -> wrong "No focused objective..."
 		(clocking, Just obj) -> do
 			case find (\(obj', event_id, start) -> obj == obj') clocking of
 	 			Nothing -> wrong "Objective is not started"
-				Just (Objective id _ _ _ _, event_id, start) -> do
+				Just (Objective id _, event_id, start) -> do
 					connection <- lift . lift $ open "facts.db"
-					lift . lift $ execute connection end_objective_event $ Only id
+					lift . lift $ execute connection stop_objective_event $ Only id
 					lift . modify $ over _1 (delete (obj, event_id, start))
 					loop
 	Just _ -> wrong "Undefined command" *> loop

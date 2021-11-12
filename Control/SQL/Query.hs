@@ -8,38 +8,38 @@ start_objective_event =
 
 get_just_created_event :: Query
 get_just_created_event = 
-	"SELECT event_id, strftime('%H:%M', start, 'unixepoch', 'localtime') \
-	\FROM events WHERE objective_id = ? AND end IS NULL ORDER BY event_id DESC"
+	"SELECT id, strftime('%H:%M', start, 'unixepoch', 'localtime') \
+	\FROM events WHERE objective_id = ? AND stop IS NULL ORDER BY id DESC"
 
-end_objective_event :: Query
-end_objective_event =
-	"UPDATE events SET end = strftime('%s', datetime('now')) \
-	\WHERE objective_id = ? AND end IS NULL"
+stop_objective_event :: Query
+stop_objective_event =
+	"UPDATE events SET stop = strftime('%s', datetime('now')) \
+	\WHERE objective_id = ? AND stop IS NULL"
 
 today_time_query :: Query
 today_time_query = 
-	"SELECT title, strftime('%H:%M', datetime(SUM (end - start), 'unixepoch')) \
+	"SELECT title, strftime('%H:%M', datetime(SUM (stop - start), 'unixepoch')) \
 	\FROM events JOIN objectives on events.objective_id = objectives.id \
-	\WHERE start > strftime('%s', date('now')) AND end IS NOT NULL \
+	\WHERE start > strftime('%s', date('now')) AND stop IS NOT NULL \
 	\GROUP BY objective_id;"
 
 all_unfinished_events :: Query
 all_unfinished_events =
-	"SELECT id, interest, behaviour, repeat, title, event_id, strftime('%H:%M', start, 'unixepoch', 'localtime') \
+	"SELECT objectives.id, title, events.id, strftime('%H:%M', start, 'unixepoch', 'localtime') \
 	\FROM events join objectives ON objectives.id = events.objective_id \
-	\WHERE end IS NULL;"
+	\WHERE stop IS NULL;"
 
 timeline_today_events_query :: Query
 timeline_today_events_query =
 	"SELECT title, strftime('%H:%M', start, 'unixepoch', 'localtime'), \
-	\IFNULL(strftime('%H:%M', end, 'unixepoch', 'localtime'), '..:..'), \
-	\strftime('%H:%M', IFNULL(end, strftime('%s', datetime('now'))) - start,'unixepoch') \
+	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), '..:..'), \
+	\strftime('%H:%M', IFNULL(stop, strftime('%s', datetime('now'))) - start, 'unixepoch') \
 	\FROM events JOIN objectives on events.objective_id = objectives.id \
-	\WHERE start > strftime('%s', date('now')) AND start < strftime('%s', date('now', '+1 day'));"
+	\WHERE start > strftime('%s', date('now')) AND stop < strftime('%s', date('now', '+1 day'));"
 
 available_tasks_query :: Query
 available_tasks_query =
-	"SELECT status, title, strftime('%H:%M', available, 'unixepoch', 'localtime'), \
-	\strftime('%H:%M', deadline, 'unixepoch', 'localtime') \
+	"SELECT status, title, strftime('%H:%M', start, 'unixepoch', 'localtime'), \
+	\strftime('%H:%M', stop, 'unixepoch', 'localtime') \
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
-	\WHERE available <= strftime('%s', 'now') AND deadline >= strftime('%s', 'now');"
+	\WHERE start <= strftime('%s', 'now') AND stop >= strftime('%s', 'now');"
