@@ -12,8 +12,8 @@ import "transformers" Control.Monad.Trans.State (StateT, evalStateT, get, modify
 
 import qualified "text" Data.Text.IO as T (putStrLn)
 
-import Control.SQL.Query (start_objective_event, get_just_created_event, stop_objective_event 
-	, today_time_query, today_tasks_query, tomorrow_tasks_query, all_unfinished_events, timeline_today_events_query)
+import Control.SQL.Query (start_objective_event, get_just_created_event, stop_objective_event
+	, today_time_query, today_tasks_query, tomorrow_tasks_query, all_unfinished_events, today_events_query, tomorrow_events_query)
 
 data Objective = Objective Int Text deriving (Eq, Show)
 
@@ -84,14 +84,15 @@ loop = prompt >>= \case
 	Just "today" -> do
 		connection <- lift . lift $ open "facts.db"
 		lift . lift $ query_ @(Int, Text, Maybe Text, Maybe Text) connection today_tasks_query >>= void . traverse print_task
+		lift . lift $ query_ @(Text, Text, Text, Text) connection today_events_query >>= print_timeline
 		loop
 	Just "tomorrow" -> do
 		connection <- lift . lift $ open "facts.db"
 		lift . lift $ query_ @(Int, Text, Maybe Text, Maybe Text) connection tomorrow_tasks_query >>= void . traverse print_task
+		lift . lift $ query_ @(Text, Text, Text, Text) connection tomorrow_events_query >>= print_timeline
 		loop
 	Just "timeline" -> do
 		connection <- lift . lift $ open "facts.db"
-		lift . lift $ query_ @(Text, Text, Text, Text) connection timeline_today_events_query >>= print_timeline
 		loop
 	Just "focus" -> do
 		connection <- lift . lift $ open "facts.db"
