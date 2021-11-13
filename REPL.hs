@@ -2,9 +2,9 @@ import "base" Control.Monad (void)
 import "base" Data.List (delete, find)
 import "base" Text.Read (readMaybe)
 import "joint" Control.Joint (over, _1, (<$$>))
-import "haskeline" System.Console.Haskeline
-import "sqlite-simple" Database.SQLite.Simple
-import "sqlite-simple" Database.SQLite.Simple.FromRow
+import "haskeline" System.Console.Haskeline (InputT, runInputT, defaultSettings, getInputLine, outputStrLn)
+import "sqlite-simple" Database.SQLite.Simple (Only (Only), open, query, query_, execute)
+import "sqlite-simple" Database.SQLite.Simple.FromRow (FromRow (fromRow), field)
 import "text" Data.Text (Text, unpack)
 import "time" Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import "transformers" Control.Monad.Trans.Class (lift)
