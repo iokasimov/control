@@ -40,14 +40,14 @@ today_tasks_query =
 	"SELECT status, title, strftime('%H:%M', start, 'unixepoch', 'localtime'), strftime('%H:%M', stop, 'unixepoch', 'localtime') \
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
 	\WHERE start >= " <> start_of_today <> " AND stop <= " <> end_of_today <> " \
-	\ORDER BY start;"
+	\ORDER BY status;"
 
 tomorrow_tasks_query :: Query
 tomorrow_tasks_query =
 	"SELECT status, title, strftime('%H:%M', start, 'unixepoch', 'localtime'), strftime('%H:%M', stop, 'unixepoch', 'localtime') \
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
 	\WHERE status = 1 AND start >= " <> start_of_tomorrow <> " AND stop <= " <> end_of_tomorrow <> " \
-	\ORDER BY start;"
+	\ORDER BY status;"
 
 today_events_query :: Query
 today_events_query =
@@ -55,7 +55,8 @@ today_events_query =
 	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), '..:..'), \
 	\strftime('%H:%M', IFNULL(stop, strftime('%s', datetime('now'))) - start, 'unixepoch') \
 	\FROM events JOIN objectives on events.objective_id = objectives.id \
-	\WHERE start >= " <> start_of_today <> " AND IFNULL(stop <= " <> end_of_today <> ", 1);"
+	\WHERE start >= " <> start_of_today <> " AND IFNULL(stop <= " <> end_of_today <> ", 1) \
+	\ORDER BY start;"
 
 tomorrow_events_query :: Query
 tomorrow_events_query =
@@ -63,5 +64,5 @@ tomorrow_events_query =
 	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), '..:..'), \
 	\strftime('%H:%M', IFNULL(stop, strftime('%s', datetime('now'))) - start, 'unixepoch') \
 	\FROM events JOIN objectives on events.objective_id = objectives.id \
-	\WHERE start >= " <> start_of_tomorrow <> " AND IFNULL(stop <= " <> end_of_tomorrow <> ", 1);"
-
+	\WHERE start >= " <> start_of_tomorrow <> " AND IFNULL(stop <= " <> end_of_tomorrow <> ", 1); \
+	\ORDER BY start;"
