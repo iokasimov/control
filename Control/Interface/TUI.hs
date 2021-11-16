@@ -1,5 +1,6 @@
-import "transformers" Data.Functor.Reverse (Reverse (Reverse))
+module Control.Interface.TUI where
 
+import "transformers" Data.Functor.Reverse (Reverse (Reverse))
 import "ansi-terminal" System.Console.ANSI (cursorUp, clearScreen)
 import "base" Control.Monad (forever, void)
 import "base" Data.Char (toLower)
@@ -10,6 +11,8 @@ import "sqlite-simple" Database.SQLite.Simple.FromRow (FromRow (fromRow), field)
 import "transformers" Control.Monad.Trans.Class (lift)
 import "transformers" Control.Monad.Trans.State (StateT, evalStateT, get, modify, put)
 import "vty" Graphics.Vty (Vty, Event (EvKey), Key (KEsc, KBS, KUp, KDown, KChar), standardIOConfig, mkVty, update, picForImage, (<->), blue, defAttr, string, withBackColor, withForeColor, green, nextEvent, shutdown)
+
+import Control.Objective (Objective (Objective), objective_title)
 
 data Zipper a = Zipper [a] a [a]
 
@@ -38,14 +41,6 @@ print_zipper_objectives :: Zipper Objective -> IO ()
 print_zipper_objectives (Zipper bs x fs) = void
 	$ traverse (putStrLn . ("   " <>)) (Reverse $ objective_title <$> bs)
 		*> putStrLn (" * " <> objective_title x) *> traverse (putStrLn . ("   " <>)) (objective_title <$> fs)
-
-data Objective = Objective Int String deriving (Eq, Show)
-
-instance FromRow Objective where
-	fromRow = Objective <$> field <*> field
-
-objective_title :: Objective -> String
-objective_title (Objective _ title) = title
 
 handler :: Vty -> StateT (String, Zipper Objective) IO ()
 handler vty = do

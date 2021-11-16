@@ -1,3 +1,5 @@
+module Control.Interface.REPL where
+
 import "base" Control.Monad (void)
 import "base" Data.List (delete, find)
 import "base" Text.Read (readMaybe)
@@ -103,7 +105,3 @@ wrong description = do
 	lift . lift . print $ "ERROR: " <> description
 	loop
 
-main = do
-	connection <- open "facts.db"
-	unfinished <- query_ connection all_unfinished_events
-	void $ evalStateT (runInputT defaultSettings loop) (unfinished, Nothing)

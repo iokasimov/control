@@ -13,16 +13,9 @@ category:            cli
 build-type:          Simple
 cabal-version:       >= 1.10
 
-executable repl
-  main-is: REPL.hs
+executable control
+  main-is: Main.hs
   other-modules: Control.Objective, Control.SQL.Query
-  build-depends: base == 4.*, joint, transformers, text, time, sqlite-simple, haskeline
+  build-depends: base == 4.*, joint, transformers, text, time, sqlite-simple, haskeline, ansi-terminal, vty
   default-extensions: FlexibleInstances, LambdaCase, OverloadedStrings, TypeApplications, TypeOperators, PackageImports
   ghc-options: -Wall -fno-warn-tabs
-
-executable tui
-  main-is: TUI.hs
-  other-modules: Control.SQL.Query
-  build-depends: base == 4.*, joint, transformers, text, time, sqlite-simple, ansi-terminal, vty
-  default-extensions: FlexibleInstances, LambdaCase, OverloadedStrings, TypeApplications, TypeOperators, PackageImports
-  ghc-options: -Wall -fno-warn-tabs -threaded
