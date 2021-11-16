@@ -14,7 +14,7 @@ import "transformers" Control.Monad.Trans.State (StateT, evalStateT, get, modify
 
 import qualified "text" Data.Text.IO as T (putStrLn)
 
-import Control.Objective (Objective (Objective), objective_title)
+import Control.Objective (Objective (Objective))
 import Control.SQL.Query (start_objective_event, get_just_created_event, stop_objective_event
 	, today_time_query, today_tasks_query, tomorrow_tasks_query, all_unfinished_events, today_events_query, tomorrow_events_query)
 
@@ -26,18 +26,18 @@ instance FromRow Event where
 instance {-# OVERLAPS #-} FromRow (Objective, Int, String) where
 	fromRow = (,,) <$> (Objective <$> field <*> field) <*> field <*> field
 
-print_timeline :: [(Text, Text, Text, Text)] -> IO ()
-print_timeline = void . traverse (T.putStrLn . prepare) where
+print_timeline :: [(String, String, String, String)] -> IO ()
+print_timeline = void . traverse (putStrLn . prepare) where
 
 	prepare (title, start, stop, amount) =
 		" ├─ " <> start <> "-" <> stop <> " (" <> amount <> ") " <> title
 
-print_task :: (Int, Text, Maybe Text, Maybe Text) -> IO ()
-print_task (-1, title, start, stop) = print $ "[CANCELED] ("
+print_task :: (Int, String, Maybe String, Maybe String) -> IO ()
+print_task (-1, title, start, stop) = putStrLn $ " [CANCELED] ("
 	<> maybe "..:.." id start <> " - " <> maybe "..:.." id stop <> ") " <> title <> " "
-print_task (0, title, start, stop) = print $ "[DONE] ("
+print_task (0, title, start, stop) = putStrLn $ " [DONE] ("
 	<> maybe "..:.." id start <> " - " <> maybe "..:.." id stop <> ") " <> title <> " "
-print_task (1, title, start, stop) = print $ "[TODO] ("
+print_task (1, title, start, stop) = putStrLn $ " [TODO] ("
 	<> maybe "..:.." id start <> " - " <> maybe "..:.." id stop <> ") " <> title <> " "
 
 type Current = ([(Objective, Int, String)], Maybe Objective)
@@ -45,7 +45,12 @@ type Current = ([(Objective, Int, String)], Maybe Objective)
 prompt :: InputT (StateT Current IO) (Maybe String)
 prompt = snd <$> lift get >>= \case
 	Nothing -> getInputLine "Mentat > "
-	Just obj -> getInputLine $ "Mentat > " <> objective_title obj <> " > "
+	Just obj -> getInputLine $ "Mentat > " <> show obj <> " > "
+
+--prompt' :: StateT Current IO String
+--prompt' = snd <$> get >>= \case
+--	Nothing -> lift $ putStr "Control > " *> hFlush stdout *> getLine
+--	Just obj -> lift $ putStr ("Mentat > " <> show obj <> " > ") *> hFlush stdout *> getLine
 
 loop :: InputT (StateT Current IO) ()
 loop = prompt >>= \case
@@ -61,13 +66,13 @@ loop = prompt >>= \case
 		loop
 	Just "today" -> do
 		connection <- lift . lift $ open "facts.db"
-		lift . lift $ query_ @(Int, Text, Maybe Text, Maybe Text) connection today_tasks_query >>= void . traverse print_task
-		lift . lift $ query_ @(Text, Text, Text, Text) connection today_events_query >>= print_timeline
+		lift . lift $ query_ @(Int, String, Maybe String, Maybe String) connection today_tasks_query >>= void . traverse print_task
+		lift . lift $ query_ @(String, String, String, String) connection today_events_query >>= print_timeline
 		loop
 	Just "tomorrow" -> do
 		connection <- lift . lift $ open "facts.db"
-		lift . lift $ query_ @(Int, Text, Maybe Text, Maybe Text) connection tomorrow_tasks_query >>= void . traverse print_task
-		lift . lift $ query_ @(Text, Text, Text, Text) connection tomorrow_events_query >>= print_timeline
+		lift . lift $ query_ @(Int, String, Maybe String, Maybe String) connection tomorrow_tasks_query >>= void . traverse print_task
+		lift . lift $ query_ @(String, String, String, String) connection tomorrow_events_query >>= print_timeline
 		loop
 	Just "focus" -> do
 		connection <- lift . lift $ open "facts.db"
@@ -104,4 +109,3 @@ loop = prompt >>= \case
 wrong description = do
 	lift . lift . print $ "ERROR: " <> description
 	loop
-

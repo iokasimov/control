@@ -12,7 +12,7 @@ import "transformers" Control.Monad.Trans.Class (lift)
 import "transformers" Control.Monad.Trans.State (StateT, evalStateT, get, modify, put)
 import "vty" Graphics.Vty (Vty, Event (EvKey), Key (KEsc, KBS, KUp, KDown, KChar), standardIOConfig, mkVty, update, picForImage, (<->), blue, defAttr, string, withBackColor, withForeColor, green, nextEvent, shutdown)
 
-import Control.Objective (Objective (Objective), objective_title)
+import Control.Objective (Objective (Objective))
 
 data Zipper a = Zipper [a] a [a]
 
@@ -39,8 +39,8 @@ filter_zipper c (Zipper bs_ x fs_) = case (filter c bs_, c x, filter c fs_) of
 
 print_zipper_objectives :: Zipper Objective -> IO ()
 print_zipper_objectives (Zipper bs x fs) = void
-	$ traverse (putStrLn . ("   " <>)) (Reverse $ objective_title <$> bs)
-		*> putStrLn (" * " <> objective_title x) *> traverse (putStrLn . ("   " <>)) (objective_title <$> fs)
+	$ traverse (putStrLn . ("   " <>)) (Reverse $ show <$> bs)
+		*> putStrLn (" * " <> show x) *> traverse (putStrLn . ("   " <>)) (show <$> fs)
 
 handler :: Vty -> StateT (String, Zipper Objective) IO ()
 handler vty = do
@@ -48,7 +48,7 @@ handler vty = do
 	get >>= \(p, z) -> lift $ do
 		putStrLn $ "Search: " <> reverse p <> "\n"
 		maybe (putStrLn "No such an objective...") print_zipper_objectives
-			$ filter_zipper (\o -> isInfixOf (toLower <$> reverse p) $ toLower <$> objective_title o) z
+			$ filter_zipper (\o -> isInfixOf (toLower <$> reverse p) $ toLower <$> show o) z
 	lift $ cursorUp 11111
 	lift (nextEvent vty) >>= \case
 		EvKey KEsc _ -> pure ()
@@ -67,9 +67,3 @@ type_pattern c = modify $ \(p, z) -> (c : p, z)
 
 remove_last_char :: StateT (String, Zipper Objective) IO ()
 remove_last_char = modify $ \(p, z) -> (if null p then p else tail p, z)
-
-main = do
-	vty <- mkVty =<< standardIOConfig
-	connection <- open "facts.db"
-	query_ connection "SELECT id, title FROM objectives" >>= \case
-		o : os -> evalStateT (handler vty) $ ("", Zipper [] o os)
