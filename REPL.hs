@@ -24,14 +24,6 @@ instance FromRow Event where
 instance {-# OVERLAPS #-} FromRow (Objective, Int, String) where
 	fromRow = (,,) <$> (Objective <$> field <*> field) <*> field <*> field
 
-event_start :: Event -> Int
-event_start (Event _ _ start _) = start
-
-data Period = Period String String deriving Show
-
-instance FromRow Period where
-	fromRow = Period <$> field <*> field
-
 print_timeline :: [(Text, Text, Text, Text)] -> IO ()
 print_timeline = void . traverse (T.putStrLn . prepare) where
 
@@ -48,19 +40,10 @@ print_task (1, title, start, stop) = print $ "[TODO] ("
 
 type Current = ([(Objective, Int, String)], Maybe Objective)
 
-currently_clocking_prompt :: [(Objective, Int, String)] -> IO ()
-currently_clocking_prompt = void . traverse started where
-	
-	started :: (Objective, Int, String) -> IO ()
-	started (Objective id title, _, start) = print
-		$ "[" <> start <> " - ...] " <> title
-
 prompt :: InputT (StateT Current IO) (Maybe String)
-prompt = do
-	--lift $ fst <$> get >>= lift . currently_clocking_prompt
-	snd <$> lift get >>= \case
-		Nothing -> getInputLine "Mentat > "
-		Just obj -> getInputLine $ "Mentat > " <> objective_title obj <> " > "
+prompt = snd <$> lift get >>= \case
+	Nothing -> getInputLine "Mentat > "
+	Just obj -> getInputLine $ "Mentat > " <> objective_title obj <> " > "
 
 loop :: InputT (StateT Current IO) ()
 loop = prompt >>= \case
@@ -70,9 +53,9 @@ loop = prompt >>= \case
 		connection <- lift . lift $ open "facts.db"
 		lift . lift $ query_ @Objective connection "SELECT id, title from objectives" >>= void . traverse print
 		loop
-	Just "today events" -> do
+	Just "today total" -> do
 		connection <- lift . lift $ open "facts.db"
-		lift . lift $ query_ @Period connection today_time_query >>= void . traverse print
+		lift . lift $ query_ @(String, String) connection today_time_query >>= void . traverse print
 		loop
 	Just "today" -> do
 		connection <- lift . lift $ open "facts.db"
@@ -83,9 +66,6 @@ loop = prompt >>= \case
 		connection <- lift . lift $ open "facts.db"
 		lift . lift $ query_ @(Int, Text, Maybe Text, Maybe Text) connection tomorrow_tasks_query >>= void . traverse print_task
 		lift . lift $ query_ @(Text, Text, Text, Text) connection tomorrow_events_query >>= print_timeline
-		loop
-	Just "timeline" -> do
-		connection <- lift . lift $ open "facts.db"
 		loop
 	Just "focus" -> do
 		connection <- lift . lift $ open "facts.db"
