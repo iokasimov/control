@@ -12,16 +12,9 @@ import "transformers" Control.Monad.Trans.State (StateT, evalStateT, get, modify
 
 import qualified "text" Data.Text.IO as T (putStrLn)
 
+import Control.Objective (Objective (Objective), objective_title)
 import Control.SQL.Query (start_objective_event, get_just_created_event, stop_objective_event
 	, today_time_query, today_tasks_query, tomorrow_tasks_query, all_unfinished_events, today_events_query, tomorrow_events_query)
-
-data Objective = Objective Int Text deriving (Eq, Show)
-
-instance FromRow Objective where
-	fromRow = Objective <$> field <*> field
-
-objective_title :: Objective -> Text
-objective_title (Objective _ title) = title
 
 data Event = Event Int Int Int (Maybe Int) deriving Show
 
@@ -60,14 +53,14 @@ currently_clocking_prompt = void . traverse started where
 	
 	started :: (Objective, Int, String) -> IO ()
 	started (Objective id title, _, start) = print
-		$ "[" <> start <> " - ...] " <> unpack title
+		$ "[" <> start <> " - ...] " <> title
 
 prompt :: InputT (StateT Current IO) (Maybe String)
 prompt = do
 	--lift $ fst <$> get >>= lift . currently_clocking_prompt
 	snd <$> lift get >>= \case
 		Nothing -> getInputLine "Mentat > "
-		Just obj -> getInputLine $ "Mentat > " <> unpack (objective_title obj) <> " > "
+		Just obj -> getInputLine $ "Mentat > " <> objective_title obj <> " > "
 
 loop :: InputT (StateT Current IO) ()
 loop = prompt >>= \case
