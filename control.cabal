@@ -16,6 +16,6 @@ cabal-version:       >= 1.10
 executable control
   main-is: Main.hs
   other-modules: Control.Objective, Control.SQL.Query, Control.Interface.REPL, Control.Interface.TUI
-  build-depends: base == 4.*, joint, transformers, text, time, sqlite-simple, haskeline, ansi-terminal, vty
+  build-depends: base == 4.*, joint, transformers, text, time, sqlite-simple, haskeline, ansi-terminal, pretty-terminal, vty
   default-extensions: FlexibleInstances, LambdaCase, OverloadedStrings, TypeApplications, TypeOperators, PackageImports
   ghc-options: -Wall -fno-warn-tabs -threaded

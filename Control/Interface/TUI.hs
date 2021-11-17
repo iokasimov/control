@@ -2,7 +2,8 @@ module Control.Interface.TUI where
 
 import "transformers" Data.Functor.Reverse (Reverse (Reverse))
 import "ansi-terminal" System.Console.ANSI (cursorUp, clearScreen)
-import "base" Control.Monad (forever, void)
+import "pretty-terminal" System.Console.Pretty (Color (..), Style (Bold), style, bgColor, color)
+import "base" Control.Monad (forever, void, when)
 import "base" Data.Char (toLower)
 import "base" Data.List (isInfixOf)
 import "base" System.IO (Handle, BufferMode (NoBuffering), hReady, stdin, hSetBuffering)
@@ -10,7 +11,7 @@ import "sqlite-simple" Database.SQLite.Simple (Only (Only), open, query, query_,
 import "sqlite-simple" Database.SQLite.Simple.FromRow (FromRow (fromRow), field)
 import "transformers" Control.Monad.Trans.Class (lift)
 import "transformers" Control.Monad.Trans.State (StateT, evalStateT, get, modify, put)
-import "vty" Graphics.Vty (Vty, Event (EvKey), Key (KEsc, KBS, KUp, KDown, KChar), standardIOConfig, mkVty, update, picForImage, (<->), blue, defAttr, string, withBackColor, withForeColor, green, nextEvent, shutdown)
+import "vty" Graphics.Vty (Vty, Event (EvKey), Key (KEnter, KEsc, KBS, KUp, KDown, KChar), standardIOConfig, mkVty, update, picForImage, (<->), blue, defAttr, string, withBackColor, withForeColor, green, nextEvent, shutdown)
 
 import Control.Objective (Objective (Objective))
 
@@ -46,7 +47,7 @@ handler :: Vty -> StateT (String, Zipper Objective) IO ()
 handler vty = do
 	lift clearScreen
 	get >>= \(p, z) -> lift $ do
-		putStrLn $ "Search: " <> reverse p <> "\n"
+		when (not $ null p) $ putStrLn $ "Search for: " <> reverse p <> "\n"
 		maybe (putStrLn "No such an objective...") print_zipper_objectives
 			$ filter_zipper (\o -> isInfixOf (toLower <$> reverse p) $ toLower <$> show o) z
 	lift $ cursorUp 11111
@@ -56,6 +57,16 @@ handler vty = do
 		EvKey KUp _ -> cursor_up *> handler vty
 		EvKey (KChar x) _ -> type_pattern x *> handler vty
 		EvKey KBS _ -> remove_last_char *> handler vty
+		EvKey KEnter _ -> focused_view vty
+		_ -> handler vty
+
+-- It would be nice to have zoom (focus lens) here
+focused_view :: Vty -> StateT (String, Zipper Objective) IO ()
+focused_view vty = do
+	snd <$> get >>= lift . putStrLn . (" " <>) . bgColor White . color Black . show . focus
+	lift $ cursorUp 11111
+	lift (nextEvent vty) >>= \case
+		EvKey KEsc _ -> pure ()
 		_ -> handler vty
 
 cursor_up, cursor_down :: StateT (String, Zipper Objective) IO ()
