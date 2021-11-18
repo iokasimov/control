@@ -22,6 +22,9 @@ stop_objective_event =
 	"UPDATE events SET stop = strftime('%s', datetime('now')) \
 	\WHERE objective_id = ? AND stop IS NULL"
 
+cancel_objective_event :: Query
+cancel_objective_event = "DELETE FROM events WHERE id = ?"
+
 today_time_query :: Query
 today_time_query = 
 	"SELECT title, strftime('%H:%M', datetime(SUM (stop - start), 'unixepoch')) \

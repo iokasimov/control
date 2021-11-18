@@ -15,7 +15,7 @@ import "transformers" Control.Monad.Trans.State (StateT, evalStateT, get, modify
 import qualified "text" Data.Text.IO as T (putStrLn)
 
 import Control.Objective (Objective (Objective))
-import Control.SQL.Query (start_objective_event, get_just_created_event, stop_objective_event
+import Control.SQL.Query (start_objective_event, get_just_created_event, stop_objective_event, cancel_objective_event
 	, today_time_query, today_tasks_query, tomorrow_tasks_query, all_unfinished_events, today_events_query, tomorrow_events_query)
 
 data Event = Event Int Int Int (Maybe Int) deriving Show
@@ -102,6 +102,16 @@ loop = prompt >>= \case
 				Just (Objective id _, event_id, start) -> do
 					connection <- lift . lift $ open "facts.db"
 					lift . lift $ execute connection stop_objective_event $ Only id
+					lift . modify $ over _1 (delete (obj, event_id, start))
+					loop
+	Just "cancel" -> lift get >>= \case
+		(_, Nothing) -> wrong "No focused objective..."
+		(clocking, Just obj) -> do
+			case find (\(obj', event_id, start) -> obj == obj') clocking of
+	 			Nothing -> wrong "Objective is not started"
+				Just (Objective id _, event_id, start) -> do
+					connection <- lift . lift $ open "facts.db"
+					lift . lift $ execute connection cancel_objective_event $ Only event_id
 					lift . modify $ over _1 (delete (obj, event_id, start))
 					loop
 	Just _ -> wrong "Undefined command" *> loop
