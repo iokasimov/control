@@ -28,14 +28,6 @@ print_task (0, title, start, stop) = putStrLn $ " [DONE] ("
 print_task (1, title, start, stop) = putStrLn $ " [" <> style Bold "TODO" <> "] ("
 	<> maybe "..:.." id start <> " - " <> maybe "..:.." id stop <> ") " <> title <> " "
 
---done_label = bgColor Blue . color White
---query_ @Objective connection "SELECT id, title FROM objectives" >>= \case
---	o : os -> evalStateT (handler vty) $ ("", Zipper [] o os)
---vty <- mkVty =<< standardIOConfig
---putStrLn $ bgColor White . color Black $ "TASKS"
---query_ @(Int, String, Maybe String, Maybe String) connection today_tasks_query >>= void . traverse print_task
---putStrLn $ bgColor White . color Black $ "EVENTS"
---query_ @(String, String, String, String) connection today_events_query >>= print_timeline
 
 main = do
 	connection <- open "facts.db"

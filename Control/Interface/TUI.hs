@@ -38,8 +38,8 @@ filter_zipper c (Zipper bs_ x fs_) = case (filter c bs_, c x, filter c fs_) of
 	(bs, False, f : fs) -> Just $ Zipper bs f fs
 	(bs, True, fs) -> Just $ Zipper bs x fs
 
-print_zipper_objectives :: Zipper Objective -> IO ()
-print_zipper_objectives (Zipper bs x fs) = void
+print_zipper_items :: Show a => Zipper a -> IO ()
+print_zipper_items (Zipper bs x fs) = void
 	$ traverse (putStrLn . ("   " <>)) (Reverse $ show <$> bs)
 		*> putStrLn (" * " <> show x) *> traverse (putStrLn . ("   " <>)) (show <$> fs)
 
@@ -48,7 +48,7 @@ handler vty = do
 	lift clearScreen
 	get >>= \(p, z) -> lift $ do
 		when (not $ null p) $ putStrLn $ "Search for: " <> reverse p <> "\n"
-		maybe (putStrLn "No such an objective...") print_zipper_objectives
+		maybe (putStrLn "No such an objective...") print_zipper_items
 			$ filter_zipper (\o -> isInfixOf (toLower <$> reverse p) $ toLower <$> show o) z
 	lift $ cursorUp 11111
 	lift (nextEvent vty) >>= \case
