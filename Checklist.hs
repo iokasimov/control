@@ -61,29 +61,38 @@ print_task (_, 1, title, start, stop) = do
 
 today_tasks_query :: Query
 today_tasks_query =
-	"SELECT tasks.id, status, title, strftime('%H:%M', start, 'unixepoch', 'localtime'), strftime('%H:%M', stop, 'unixepoch', 'localtime') \
+	"SELECT tasks.id, status, title, strftime('%d.%m %H:%M', start, 'unixepoch', 'localtime'), strftime('%d.%m %H:%M', stop, 'unixepoch', 'localtime') \
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
 	\WHERE start >= " <> start_of_today <> " AND stop <= " <> end_of_today <> " \
 	\ORDER BY status;"
 
+still_todo_tasks_query :: Query
+still_todo_tasks_query =
+	"SELECT tasks.id, 1, title, strftime('%d.%m %H:%M', start, 'unixepoch', 'localtime'), IFNULL(strftime('%d.%m %H:%M', stop, 'unixepoch', 'localtime'), '.....') \
+	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
+	\WHERE start < " <> start_of_today <> " AND IFNULL(stop >= strftime('%s', 'now'), 1) AND status = 1;"
+
 overdue_tasks_query :: Query
 overdue_tasks_query =
-	"SELECT tasks.id, -2, title, strftime('%H:%M', start, 'unixepoch', 'localtime'), strftime('%H:%M', stop, 'unixepoch', 'localtime') \
+	"SELECT tasks.id, -2, title, strftime('%d.%m %H:%M', start, 'unixepoch', 'localtime'), strftime('%d.%m %H:%M', stop, 'unixepoch', 'localtime') \
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
 	\WHERE status = 1 and stop < strftime('%s', 'now') \
 	\ORDER BY start;"
 
 load_tasks connection = do
 	today <- lift $ query_ @(Int, Int, String, String, String) connection today_tasks_query
+	still <- lift $ query_ @(Int, Int, String, String, String) connection still_todo_tasks_query
 	overdue <- lift $ query_ @(Int, Int, String, String, String) connection overdue_tasks_query
-	put $ Zipper overdue (head today) (tail today)
+	put $ Zipper (overdue <> still) (head today) (tail today)
 
 main = do
 	connection <- open "facts.db"
 	today <- query_ @(Int, Int, String, String, String) connection today_tasks_query
+	still <- query_ @(Int, Int, String, String, String) connection still_todo_tasks_query
 	overdue <- query_ @(Int, Int, String, String, String) connection overdue_tasks_query
 	hSetBuffering stdin NoBuffering
 	hSetEcho stdin False
 	putStr "\ESC[?25l"
-	flip evalStateT (Zipper overdue (head today) (tail today))
+	--for still print
+	flip evalStateT (Zipper (overdue <> still) (head today) (tail today))
 		$ forever $ display *> (lift getChar >>= keystroke connection)
