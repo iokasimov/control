@@ -61,9 +61,9 @@ print_task (_, 1, title, start, stop) = do
 
 today_tasks_query :: Query
 today_tasks_query =
-	"SELECT tasks.id, status, title, strftime('%d.%m %H:%M', start, 'unixepoch', 'localtime'), strftime('%d.%m %H:%M', stop, 'unixepoch', 'localtime') \
+	"SELECT tasks.id, status, title, strftime('%d.%m %H:%M', start, 'unixepoch', 'localtime'), IFNULL(strftime('%d.%m %H:%M', stop, 'unixepoch', 'localtime'), '.....') \
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
-	\WHERE start >= " <> start_of_today <> " AND stop <= " <> end_of_today <> " \
+	\WHERE start >= " <> start_of_today <> " AND IFNULL(stop <= " <> end_of_today <> ", 1) \
 	\ORDER BY status;"
 
 still_todo_tasks_query :: Query
