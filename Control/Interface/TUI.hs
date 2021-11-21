@@ -20,6 +20,11 @@ data Zipper a = Zipper [a] a [a]
 instance Functor Zipper where
 	fmap f (Zipper bs x fs) = Zipper (f <$> bs) (f x) (f <$> fs)
 
+instance Foldable Zipper where
+
+instance Traversable Zipper where
+	traverse f (Zipper bs x fs) = Zipper <$> traverse f bs <*> f x <*> traverse f fs
+
 focus :: Zipper a -> a
 focus (Zipper _ x _) = x
 
