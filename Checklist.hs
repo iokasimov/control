@@ -16,33 +16,33 @@ import Control.Interface.TUI (Zipper (Zipper), focus, up, down)
 
 type Task = (Int, Int, String, String, String)
 
-keystroke :: Connection -> Char -> StateT (Zipper (Zipper Task)) IO ()
+keystroke :: Connection -> Char -> StateT (Zipper (String, Zipper Task)) IO ()
 keystroke _ '\t' = modify $ \case
 	Zipper [] x [] -> Zipper [] x []
 	Zipper bs x [] -> Zipper [] (last bs) $ reverse (init bs) <> [x]
 	Zipper bs x (f : fs) -> Zipper (x : bs) f fs
 keystroke _ 'j' = do
-	modify $ \(Zipper bs x fs) -> Zipper bs (down x) fs
-	lift (putStr "\ESC[1B")
+	modify $ \(Zipper bs (title, x) fs) -> Zipper bs (title, down x) fs
+	--lift (putStr "\ESC[1B")
 keystroke _ 'k' = do
-	modify $ \(Zipper bs x fs) -> Zipper bs (up x) fs
-	lift (putStr "\ESC[1A")
+	modify $ \(Zipper bs (title, x) fs) -> Zipper bs (title, up x) fs
+	--lift (putStr "\ESC[1A")
 keystroke connection 'r' = lift (refresh_tasks connection) >>= put
 keystroke connection 'D' = do
-	focus . focus <$> get >>= \(task_id, status, title, start, stop) -> do
+	focus . snd . focus <$> get >>= \(task_id, status, title, start, stop) -> do
 		lift $ execute connection update_task_status (0 :: Int, task_id)
-		modify $ \(Zipper bs (Zipper bbs x ffs) fs) ->
-			Zipper bs (Zipper bbs (task_id, 0, title, start, stop) ffs) fs
+		modify $ \(Zipper bs (title, Zipper bbs x ffs) fs) ->
+			Zipper bs (title, Zipper bbs (task_id, 0, title, start, stop) ffs) fs
 keystroke connection 'C' = do
-	focus . focus <$> get >>= \(task_id, status, title, start, stop) -> do
+	focus . snd . focus <$> get >>= \(task_id, status, title, start, stop) -> do
 		lift $ execute connection update_task_status (-1 :: Int, task_id)
-		modify $ \(Zipper bs (Zipper bbs x ffs) fs) ->
-			Zipper bs (Zipper bbs (task_id, -1, title, start, stop) ffs) fs
+		modify $ \(Zipper bs (title, Zipper bbs x ffs) fs) ->
+			Zipper bs (title, Zipper bbs (task_id, -1, title, start, stop) ffs) fs
 keystroke connection 'T' = do
-	focus . focus <$> get >>= \(task_id, status, title, start, stop) -> do
+	focus . snd . focus <$> get >>= \(task_id, status, title, start, stop) -> do
 		lift $ execute connection update_task_status (1 :: Int, task_id)
-		modify $ \(Zipper bs (Zipper bbs x ffs) fs) ->
-			Zipper bs (Zipper bbs (task_id, 1, title, start, stop) ffs) fs
+		modify $ \(Zipper bs (title, Zipper bbs x ffs) fs) ->
+			Zipper bs (title, Zipper bbs (task_id, 1, title, start, stop) ffs) fs
 keystroke _ _ = pure ()
 
 update_task_status :: Query
@@ -52,20 +52,20 @@ display = do
 	lift $ putStr "\ESC[2J"
 	lift $ putStr "\ESC[100A"
 	get >>= \(Zipper bs x fs) -> lift $ do
+		traverse print_unfocused_tasks bs
 		putStr "\n"
-		traverse print_unfocused_zipper_items bs
-		putStr "\n"
-		print_focused_zipper_items  x
-		putStr "\n"
-		traverse print_unfocused_zipper_items fs
+		print_focused_tasks  x
+		traverse print_unfocused_tasks fs
 		putStr "\n"
 
-print_focused_zipper_items (Zipper bs x fs) = void $ do
+print_focused_tasks (title, Zipper bs x fs) = void $ do
+	putStrLn $ "   \ESC[7m" <> title <> "\ESC[0m\n"
 	print_tasks $ Reverse bs
 	print_focused_task x
 	print_tasks $ fs
 
-print_unfocused_zipper_items (Zipper bs x fs) = void $ do
+print_unfocused_tasks (title, Zipper bs x fs) = void $ do
+	putStrLn $ "\n   " <> title <> "\n"
 	print_tasks $ Reverse bs
 	print_unfocused_task x
 	print_tasks $ fs
@@ -116,13 +116,22 @@ load_all_tasks connection = (,,)
 
 refresh_tasks connection = do
 	load_all_tasks connection <&> \case
-		(od : ods, st : sts, tt : tts) -> Zipper [Zipper [] od ods] (Zipper [] st sts) [Zipper [] tt tts]
-		(od : ods, st : sts, []) -> Zipper [Zipper [] od ods] (Zipper [] st sts) []
-		(od : ods, [], tt : tts) -> Zipper [Zipper [] od ods] (Zipper [] tt tts) []
-		([], st : sts, tt : tts) -> Zipper [Zipper [] st sts] (Zipper [] tt tts) []
-		([], st : sts, []) -> Zipper [] (Zipper [] st sts) []
-		(od : ods, [], []) -> Zipper [] (Zipper [] od ods) []
-		([], [], tt : tts) -> Zipper [] (Zipper [] tt tts) []
+		(od : ods, st : sts, tt : tts) -> Zipper
+			[("OVERDUE tasks", Zipper [] od ods)]
+			("Tasks still in TODO", Zipper [] st sts)
+			[("Tasks needed TODO today", Zipper [] tt tts)]
+		(od : ods, st : sts, []) -> Zipper 
+			[("OVERDUE tasks", Zipper [] od ods)] 
+			("Tasks still in TODO", Zipper [] st sts) []
+		(od : ods, [], tt : tts) -> Zipper 
+			[("OVERDUE tasks", Zipper [] od ods)] 
+			("Tasks needed TODO today", Zipper [] tt tts) []
+		([], st : sts, tt : tts) -> Zipper
+			[("Tasks still in TODO", Zipper [] st sts)]
+			("Tasks needed TODO today", Zipper [] tt tts) []
+		([], st : sts, []) -> Zipper [] ("Tasks still in TODO", Zipper [] st sts) []
+		(od : ods, [], []) -> Zipper [] ("OVERDUE tasks", Zipper [] od ods) []
+		([], [], tt : tts) -> Zipper [] ("Tasks needed TODO today", Zipper [] tt tts) []
 
 main = do
 	connection <- open "facts.db"
