@@ -23,10 +23,8 @@ keystroke _ '\t' = modify $ \case
 	Zipper bs x (f : fs) -> Zipper (x : bs) f fs
 keystroke _ 'j' = do
 	modify $ \(Zipper bs (title, x) fs) -> Zipper bs (title, down x) fs
-	--lift (putStr "\ESC[1B")
 keystroke _ 'k' = do
 	modify $ \(Zipper bs (title, x) fs) -> Zipper bs (title, up x) fs
-	--lift (putStr "\ESC[1A")
 keystroke connection 'r' = lift (refresh_tasks connection) >>= put
 keystroke connection 'D' = do
 	focus . snd . focus <$> get >>= \(task_id, status, mode, title, start, stop) -> do
@@ -81,15 +79,21 @@ print_unfocused_task t =
 
 print_task :: Task -> IO ()
 print_task (_, status, mode, title, start, stop) = putStrLn
-	$ show_task_status status <> show_task_mode mode <> start <> "-" <> stop <> "] " <> title
+	-- $ show_task_status status <> show_task_mode mode <> start <> "-" <> stop <> "] " <> title
+	$ show_task_status status <> show_task_boundaries mode start stop <> title
 
 show_task_status (-2) = "[LATE] "
 show_task_status (-1) = "[GONE] "
 show_task_status 0 = "[DONE] "
 show_task_status 1 = "[TODO] "
 
-show_task_mode 0 = "[FLEXIBLE "
-show_task_mode 1 = "[SCHEDULE "
+show_task_boundaries 0 ready [] = "[READY: " <> ready <> "] "
+show_task_boundaries 0 ready deadline = "[READY: " <> ready <> "] [DEADLINE: " <> deadline <> "] "
+show_task_boundaries 1 begin [] = "[BEGIN: " <> begin <> "] "
+show_task_boundaries 1 begin complete = "[BEGIN: " <> begin <> "] [COMPLETE: " <> complete <> "] "
+
+title_with_counter title count =
+	title <> " (" <> show count <> ")"
 
 todo_today :: Query
 todo_today =
@@ -102,7 +106,7 @@ todo_today =
 
 someday_todo :: Query
 someday_todo =
-	"SELECT tasks.id, 1, task_event_priority, title, '?????', '?????'  \
+	"SELECT tasks.id, 1, task_event_priority, title, strftime('%d.%m', start, 'unixepoch', 'localtime'), '' \
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
 	\WHERE stop IS NULL AND status = 1 AND task_event_priority = 0;"
 
