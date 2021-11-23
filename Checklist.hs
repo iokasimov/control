@@ -91,18 +91,20 @@ show_task_status 1 = "[TODO] "
 show_task_mode 0 = "[FLEXIBLE "
 show_task_mode 1 = "[SCHEDULE "
 
-today_todo :: Query
-today_todo =
-	"SELECT tasks.id, status, task_event_priority, title, strftime('%d.%m %H:%M', start, 'unixepoch', 'localtime'), IFNULL(strftime('%d.%m %H:%M', stop, 'unixepoch', 'localtime'), '.....') \
+todo_today :: Query
+todo_today =
+	"SELECT tasks.id, status, task_event_priority, title, \
+	\strftime('%H:%M', start, 'unixepoch', 'localtime'), \
+	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), '.....') \
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
 	\WHERE start >= " <> start_of_today <> " AND IFNULL(stop <= " <> end_of_today <> ", 1) \
-	\ORDER BY status;"
+	\ORDER BY status, task_event_priority, start;"
 
-still_todo :: Query
-still_todo =
-	"SELECT tasks.id, 1, task_event_priority, title, strftime('%d.%m %H:%M', start, 'unixepoch', 'localtime'), IFNULL(strftime('%d.%m %H:%M', stop, 'unixepoch', 'localtime'), '.....') \
+someday_todo :: Query
+someday_todo =
+	"SELECT tasks.id, 1, task_event_priority, title, '?????', '?????'  \
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
-	\WHERE start < " <> start_of_today <> " AND IFNULL(stop >= strftime('%s', 'now'), 1) AND status = 1;"
+	\WHERE stop IS NULL AND status = 1 AND task_event_priority = 0;"
 
 overdue :: Query
 overdue =
@@ -113,35 +115,27 @@ overdue =
 
 load_all_tasks connection = (,,)
 	<$> query_ @Task connection overdue
-	<*> query_ @Task connection still_todo
+	<*> query_ @Task connection someday_todo
 	<*> query_ @Task connection todo_today
 
 refresh_tasks connection = do
 	load_all_tasks connection <&> \case
 		(od : ods, st : sts, tt : tts) -> Zipper
-			[("OVERDUE tasks", Zipper [] od ods)]
-			("Tasks still in TODO", Zipper [] st sts)
-			[("Tasks needed TODO today", Zipper [] tt tts)]
-		(od : ods, st : sts, []) -> Zipper 
-			[("OVERDUE tasks", Zipper [] od ods)] 
-			("Tasks still in TODO", Zipper [] st sts) []
-		(od : ods, [], tt : tts) -> Zipper 
-			[("OVERDUE tasks", Zipper [] od ods)] 
-			("Tasks needed TODO today", Zipper [] tt tts) []
+			[("OVERDUE", Zipper [] od ods)]
+			("SOMEDAY", Zipper [] st sts)
+			[("TODAY", Zipper [] tt tts)]
+		(od : ods, st : sts, []) -> Zipper
+			[("OVERDUE", Zipper [] od ods)]
+			("TODAY", Zipper [] st sts) []
+		(od : ods, [], tt : tts) -> Zipper
+			[("OVERDUE", Zipper [] od ods)]
+			("TODAY", Zipper [] tt tts) []
 		([], st : sts, tt : tts) -> Zipper
-			[("Tasks still in TODO", Zipper [] st sts)]
-			("Tasks needed TODO today", Zipper [] tt tts) []
-		([], st : sts, []) -> Zipper [] ("Tasks still in TODO", Zipper [] st sts) []
-		(od : ods, [], []) -> Zipper [] ("OVERDUE tasks", Zipper [] od ods) []
-		([], [], tt : tts) -> Zipper [] ("Tasks needed TODO today", Zipper [] tt tts) []
-
-todo_today =
-	"SELECT tasks.id, status, task_event_priority, title, \
-	\strftime('%H:%M', start, 'unixepoch', 'localtime'), \
-	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), '.....') \
-	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
-	\WHERE start >= " <> start_of_today <> " AND IFNULL(stop <= " <> end_of_today <> ", 1) \
-	\ORDER BY status, task_event_priority, start;"
+			[("SOMEDAY", Zipper [] st sts)]
+			("TODAY", Zipper [] tt tts) []
+		([], st : sts, []) -> Zipper [] ("SOMEDAY", Zipper [] st sts) []
+		(od : ods, [], []) -> Zipper [] ("OVERDUE", Zipper [] od ods) []
+		([], [], tt : tts) -> Zipper [] ("TODAY", Zipper [] tt tts) []
 
 main = do
 	connection <- open "facts.db"
