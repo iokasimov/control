@@ -4,6 +4,7 @@ import "base" Control.Monad
 import "base" Control.Exception
 import "base" Data.Functor ((<&>))
 import "base" Data.Traversable (for)
+import "base" Data.Maybe (catMaybes)
 import "base" System.IO (BufferMode (NoBuffering), hSetBuffering, hSetEcho, stdin)
 import "joint" Control.Joint ((<$$>), (<**>))
 import "sqlite-simple" Database.SQLite.Simple (Connection, Query, open, query_, execute)
@@ -126,29 +127,21 @@ overdue =
 	\WHERE status = 1 and stop < strftime('%s', 'now') \
 	\ORDER BY start;"
 
-load_all_tasks connection = (,,)
-	<$> query_ @Task connection overdue
-	<*> query_ @Task connection someday_todo
-	<*> query_ @Task connection today_tasks
+load_all_tasks connection = (\od td tm sd -> od : td : tm : sd : [])
+	<$> load_tasks_zipper connection "OVERDUE" overdue
+	<*> load_tasks_zipper connection "TODAY" today_tasks
+	<*> load_tasks_zipper connection "TOMORROW" tomorrow_tasks
+	<*> load_tasks_zipper connection "SOMEDAY" someday_todo
+
+load_tasks_zipper :: Connection -> String -> Query -> IO (Maybe (String, Zipper Task))
+load_tasks_zipper connection title q = query_ @Task connection q <&> \case
+	t : ts -> Just $ (title, Zipper [] t ts)
+	[] -> Nothing
 
 refresh_tasks connection = do
-	load_all_tasks connection <&> \case
-		(od : ods, st : sts, tdt : tdts) -> Zipper
-			[("OVERDUE", Zipper [] od ods)]
-			("SOMEDAY", Zipper [] st sts)
-			[("TODAY", Zipper [] tdt tdts)]
-		(od : ods, st : sts, []) -> Zipper
-			[("OVERDUE", Zipper [] od ods)]
-			("SOMEDAY", Zipper [] st sts) []
-		(od : ods, [], tdt : tdts) -> Zipper
-			[("OVERDUE", Zipper [] od ods)]
-			("TODAY", Zipper [] tdt tdts) []
-		([], st : sts, tdt : tdts) -> Zipper
-			[("SOMEDAY", Zipper [] st sts)]
-			("TODAY", Zipper [] tdt tdts) []
-		([], st : sts, []) -> Zipper [] ("SOMEDAY", Zipper [] st sts) []
-		(od : ods, [], []) -> Zipper [] ("OVERDUE", Zipper [] od ods) []
-		([], [], tdt : tdts) -> Zipper [] ("TODAY", Zipper [] tdt tdts) []
+	load_all_tasks connection <&> catMaybes <&> \case
+		[] -> error "There are no tasks!"
+		s : ss -> Zipper [] s ss
 
 main = do
 	connection <- open "facts.db"
