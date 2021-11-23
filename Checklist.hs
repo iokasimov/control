@@ -14,7 +14,7 @@ import "transformers" Control.Monad.Trans.State (StateT, evalStateT, get, modify
 import Control.SQL.Query (start_of_today, end_of_today, today_events_query)
 import Control.Interface.TUI (Zipper (Zipper), focus, up, down)
 
-type Task = (Int, Int, String, String, String)
+type Task = (Int, Int, Int, String, String, String)
 
 keystroke :: Connection -> Char -> StateT (Zipper (String, Zipper Task)) IO ()
 keystroke _ '\t' = modify $ \case
@@ -29,20 +29,20 @@ keystroke _ 'k' = do
 	--lift (putStr "\ESC[1A")
 keystroke connection 'r' = lift (refresh_tasks connection) >>= put
 keystroke connection 'D' = do
-	focus . snd . focus <$> get >>= \(task_id, status, title, start, stop) -> do
+	focus . snd . focus <$> get >>= \(task_id, status, mode, title, start, stop) -> do
 		lift $ execute connection update_task_status (0 :: Int, task_id)
 		modify $ \(Zipper bs (title, Zipper bbs x ffs) fs) ->
-			Zipper bs (title, Zipper bbs (task_id, 0, title, start, stop) ffs) fs
+			Zipper bs (title, Zipper bbs (task_id, 0, mode, title, start, stop) ffs) fs
 keystroke connection 'C' = do
-	focus . snd . focus <$> get >>= \(task_id, status, title, start, stop) -> do
+	focus . snd . focus <$> get >>= \(task_id, status, mode, title, start, stop) -> do
 		lift $ execute connection update_task_status (-1 :: Int, task_id)
 		modify $ \(Zipper bs (title, Zipper bbs x ffs) fs) ->
-			Zipper bs (title, Zipper bbs (task_id, -1, title, start, stop) ffs) fs
+			Zipper bs (title, Zipper bbs (task_id, -1, mode, title, start, stop) ffs) fs
 keystroke connection 'T' = do
-	focus . snd . focus <$> get >>= \(task_id, status, title, start, stop) -> do
+	focus . snd . focus <$> get >>= \(task_id, status, mode, title, start, stop) -> do
 		lift $ execute connection update_task_status (1 :: Int, task_id)
 		modify $ \(Zipper bs (title, Zipper bbs x ffs) fs) ->
-			Zipper bs (title, Zipper bbs (task_id, 1, title, start, stop) ffs) fs
+			Zipper bs (title, Zipper bbs (task_id, 1, mode, title, start, stop) ffs) fs
 keystroke _ _ = pure ()
 
 update_task_status :: Query
@@ -59,13 +59,13 @@ display = do
 		putStr "\n"
 
 print_focused_tasks (title, Zipper bs x fs) = void $ do
-	putStrLn $ "   \ESC[7m" <> title <> "\ESC[0m\n"
+	putStrLn $ "   \ESC[1m\ESC[4m" <> title <> "\ESC[0m"
 	print_tasks $ Reverse bs
 	print_focused_task x
 	print_tasks $ fs
 
 print_unfocused_tasks (title, Zipper bs x fs) = void $ do
-	putStrLn $ "\n   " <> title <> "\n"
+	putStrLn $ "\n   \ESC[4m" <> title <> "\ESC[0m"
 	print_tasks $ Reverse bs
 	print_unfocused_task x
 	print_tasks $ fs
@@ -74,37 +74,39 @@ print_tasks tasks = for tasks $ \t ->
 	putStr "   " *> print_task t
 
 print_focused_task t =
-	putStr " * " *> print_task t
+	putStr " > " *> print_task t
 
 print_unfocused_task t =
 	putStr "   " *> print_task t
 
-print_task :: (Int, Int, String, String, String) -> IO ()
-print_task (_, -2, title, start, stop) = do
-	putStrLn $ "[\ESC[0mLATE\ESC[0m] " <> start <> " - " <> stop <> " " <> title
-print_task (_, -1, title, start, stop) = do
-	putStrLn $ "[\ESC[0mGONE\ESC[0m] " <> start <> " - " <> stop <> " " <> title
-print_task (_, 0, title, start, stop) = do
-	putStrLn $ "[\ESC[4mDONE\ESC[0m] " <> start <> " - " <> stop <> " " <> title
-print_task (_, 1, title, start, stop) = do
-	putStrLn $ "[\ESC[1mTODO\ESC[0m] " <> start <> " - " <> stop <> " " <> title
+print_task :: Task -> IO ()
+print_task (_, status, mode, title, start, stop) = putStrLn
+	$ show_task_status status <> show_task_mode mode <> start <> "-" <> stop <> "] " <> title
+
+show_task_status (-2) = "[LATE] "
+show_task_status (-1) = "[GONE] "
+show_task_status 0 = "[DONE] "
+show_task_status 1 = "[TODO] "
+
+show_task_mode 0 = "[FLEXIBLE "
+show_task_mode 1 = "[SCHEDULE "
 
 today_todo :: Query
 today_todo =
-	"SELECT tasks.id, status, title, strftime('%d.%m %H:%M', start, 'unixepoch', 'localtime'), IFNULL(strftime('%d.%m %H:%M', stop, 'unixepoch', 'localtime'), '.....') \
+	"SELECT tasks.id, status, task_event_priority, title, strftime('%d.%m %H:%M', start, 'unixepoch', 'localtime'), IFNULL(strftime('%d.%m %H:%M', stop, 'unixepoch', 'localtime'), '.....') \
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
 	\WHERE start >= " <> start_of_today <> " AND IFNULL(stop <= " <> end_of_today <> ", 1) \
 	\ORDER BY status;"
 
 still_todo :: Query
 still_todo =
-	"SELECT tasks.id, 1, title, strftime('%d.%m %H:%M', start, 'unixepoch', 'localtime'), IFNULL(strftime('%d.%m %H:%M', stop, 'unixepoch', 'localtime'), '.....') \
+	"SELECT tasks.id, 1, task_event_priority, title, strftime('%d.%m %H:%M', start, 'unixepoch', 'localtime'), IFNULL(strftime('%d.%m %H:%M', stop, 'unixepoch', 'localtime'), '.....') \
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
 	\WHERE start < " <> start_of_today <> " AND IFNULL(stop >= strftime('%s', 'now'), 1) AND status = 1;"
 
 overdue :: Query
 overdue =
-	"SELECT tasks.id, -2, title, strftime('%d.%m %H:%M', start, 'unixepoch', 'localtime'), strftime('%d.%m %H:%M', stop, 'unixepoch', 'localtime') \
+	"SELECT tasks.id, -2, task_event_priority, title, strftime('%d.%m %H:%M', start, 'unixepoch', 'localtime'), strftime('%d.%m %H:%M', stop, 'unixepoch', 'localtime') \
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
 	\WHERE status = 1 and stop < strftime('%s', 'now') \
 	\ORDER BY start;"
@@ -112,7 +114,7 @@ overdue =
 load_all_tasks connection = (,,)
 	<$> query_ @Task connection overdue
 	<*> query_ @Task connection still_todo
-	<*> query_ @Task connection today_todo
+	<*> query_ @Task connection todo_today
 
 refresh_tasks connection = do
 	load_all_tasks connection <&> \case
@@ -133,11 +135,23 @@ refresh_tasks connection = do
 		(od : ods, [], []) -> Zipper [] ("OVERDUE tasks", Zipper [] od ods) []
 		([], [], tt : tts) -> Zipper [] ("Tasks needed TODO today", Zipper [] tt tts) []
 
+todo_today =
+	"SELECT tasks.id, status, task_event_priority, title, \
+	\strftime('%H:%M', start, 'unixepoch', 'localtime'), \
+	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), '.....') \
+	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
+	\WHERE start >= " <> start_of_today <> " AND IFNULL(stop <= " <> end_of_today <> ", 1) \
+	\ORDER BY status, task_event_priority, start;"
+
 main = do
 	connection <- open "facts.db"
 	hSetBuffering stdin NoBuffering
 	hSetEcho stdin False
 	putStr "\ESC[?25l"
+
+	--query_ @Task connection todo_today >>= \case
+	--	t : ts -> print_focused_tasks ("TODAY", Zipper [] t ts)
+
 	refresh_tasks connection >>= evalStateT
 		(forever $ display *> (lift getChar >>= keystroke connection))
 	--flip evalStateT (Zipper (overdue <> still) (head today) (tail today))
