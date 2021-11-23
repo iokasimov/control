@@ -11,7 +11,7 @@ import "transformers" Data.Functor.Reverse (Reverse (Reverse))
 import "transformers" Control.Monad.Trans.Class (lift)
 import "transformers" Control.Monad.Trans.State (StateT, evalStateT, get, modify, put)
 
-import Control.SQL.Query (start_of_today, end_of_today, today_events_query)
+import Control.SQL.Query (start_of_today, end_of_today, start_of_tomorrow, end_of_tomorrow)
 import Control.Interface.TUI (Zipper (Zipper), focus, up, down)
 
 type Task = (Int, Int, Int, String, String, String)
@@ -95,13 +95,22 @@ show_task_boundaries 1 begin complete = "[BEGIN: " <> begin <> "] [COMPLETE: " <
 title_with_counter title count =
 	title <> " (" <> show count <> ")"
 
-todo_today :: Query
-todo_today =
+today_tasks :: Query
+today_tasks =
 	"SELECT tasks.id, status, task_event_priority, title, \
 	\strftime('%H:%M', start, 'unixepoch', 'localtime'), \
-	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), '.....') \
+	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), '') \
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
 	\WHERE start >= " <> start_of_today <> " AND IFNULL(stop <= " <> end_of_today <> ", 1) \
+	\ORDER BY status, task_event_priority, start;"
+
+tomorrow_tasks :: Query
+tomorrow_tasks =
+	"SELECT tasks.id, status, task_event_priority, title, \
+	\strftime('%H:%M', start, 'unixepoch', 'localtime'), \
+	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), '') \
+	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
+	\WHERE start >= " <> start_of_tomorrow <> " AND IFNULL(stop <= " <> end_of_tomorrow <> ", 1) \
 	\ORDER BY status, task_event_priority, start;"
 
 someday_todo :: Query
@@ -120,26 +129,26 @@ overdue =
 load_all_tasks connection = (,,)
 	<$> query_ @Task connection overdue
 	<*> query_ @Task connection someday_todo
-	<*> query_ @Task connection todo_today
+	<*> query_ @Task connection today_tasks
 
 refresh_tasks connection = do
 	load_all_tasks connection <&> \case
-		(od : ods, st : sts, tt : tts) -> Zipper
+		(od : ods, st : sts, tdt : tdts) -> Zipper
 			[("OVERDUE", Zipper [] od ods)]
 			("SOMEDAY", Zipper [] st sts)
-			[("TODAY", Zipper [] tt tts)]
+			[("TODAY", Zipper [] tdt tdts)]
 		(od : ods, st : sts, []) -> Zipper
 			[("OVERDUE", Zipper [] od ods)]
-			("TODAY", Zipper [] st sts) []
-		(od : ods, [], tt : tts) -> Zipper
+			("SOMEDAY", Zipper [] st sts) []
+		(od : ods, [], tdt : tdts) -> Zipper
 			[("OVERDUE", Zipper [] od ods)]
-			("TODAY", Zipper [] tt tts) []
-		([], st : sts, tt : tts) -> Zipper
+			("TODAY", Zipper [] tdt tdts) []
+		([], st : sts, tdt : tdts) -> Zipper
 			[("SOMEDAY", Zipper [] st sts)]
-			("TODAY", Zipper [] tt tts) []
+			("TODAY", Zipper [] tdt tdts) []
 		([], st : sts, []) -> Zipper [] ("SOMEDAY", Zipper [] st sts) []
 		(od : ods, [], []) -> Zipper [] ("OVERDUE", Zipper [] od ods) []
-		([], [], tt : tts) -> Zipper [] ("TODAY", Zipper [] tt tts) []
+		([], [], tdt : tdts) -> Zipper [] ("TODAY", Zipper [] tdt tdts) []
 
 main = do
 	connection <- open "facts.db"
@@ -147,7 +156,7 @@ main = do
 	hSetEcho stdin False
 	putStr "\ESC[?25l"
 
-	--query_ @Task connection todo_today >>= \case
+	--query_ @Task connection today_tasks >>= \case
 	--	t : ts -> print_focused_tasks ("TODAY", Zipper [] t ts)
 
 	refresh_tasks connection >>= evalStateT
