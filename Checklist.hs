@@ -51,14 +51,14 @@ display = do
 	lift $ putStr "\ESC[2J"
 	lift $ putStr "\ESC[100A"
 	get >>= \(Zipper bs x fs) -> lift $ do
-		traverse print_unfocused_tasks bs
+		traverse print_unfocused_tasks $ Reverse bs
 		putStr "\n"
 		print_focused_tasks  x
 		traverse print_unfocused_tasks fs
 		putStr "\n"
 
 print_focused_tasks (title, Zipper bs x fs) = void $ do
-	putStrLn $ "   \ESC[1m\ESC[4m" <> title <> "\ESC[0m"
+	putStrLn $ " + \ESC[1m\ESC[4m" <> title <> "\ESC[0m"
 	print_tasks $ Reverse bs
 	print_focused_task x
 	print_tasks $ fs
@@ -70,18 +70,17 @@ print_unfocused_tasks (title, Zipper bs x fs) = void $ do
 	print_tasks $ fs
 
 print_tasks tasks = for tasks $ \t ->
-	putStr "   " *> print_task t
+	putStrLn $ "   " <> show_task t
 
 print_focused_task t =
-	putStr " > " *> print_task t
+	putStrLn $ " * \ESC[1m" <> show_task t <> "\ESC[0m"
 
 print_unfocused_task t =
-	putStr "   " *> print_task t
+	putStrLn $ "   " <> show_task t
 
-print_task :: Task -> IO ()
-print_task (_, status, mode, title, start, stop) = putStrLn
-	-- $ show_task_status status <> show_task_mode mode <> start <> "-" <> stop <> "] " <> title
-	$ show_task_status status <> show_task_boundaries mode start stop <> title
+show_task :: Task -> String
+show_task (_, status, mode, title, start, stop) = 
+	show_task_status status <> show_task_boundaries mode start stop <> title
 
 show_task_status (-2) = "[LATE] "
 show_task_status (-1) = "[GONE] "
@@ -128,10 +127,10 @@ overdue =
 	\ORDER BY start;"
 
 load_all_tasks connection = (\od td tm sd -> od : td : tm : sd : [])
-	<$> load_tasks_zipper connection "OVERDUE" overdue
-	<*> load_tasks_zipper connection "TODAY" today_tasks
-	<*> load_tasks_zipper connection "TOMORROW" tomorrow_tasks
-	<*> load_tasks_zipper connection "SOMEDAY" someday_todo
+	<$> load_tasks_zipper connection "OVERDUE tasks" overdue
+	<*> load_tasks_zipper connection "Tasks for TODAY" today_tasks
+	<*> load_tasks_zipper connection "Tasks for TOMORROW" tomorrow_tasks
+	<*> load_tasks_zipper connection "Tasks to do SOMEDAY" someday_todo
 
 load_tasks_zipper :: Connection -> String -> Query -> IO (Maybe (String, Zipper Task))
 load_tasks_zipper connection title q = query_ @Task connection q <&> \case
