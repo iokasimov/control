@@ -8,6 +8,10 @@ prepare_terminal = do
 	hSetEcho stdin False
 	hide_cursor
 
+refresh_terminal = do
+	clear_terminal
+	up_cursor
+
 clear_terminal = putStr "\ESC[2J"
 up_cursor = putStr "\ESC[100A"
 hide_cursor = putStr "\ESC[?25l"

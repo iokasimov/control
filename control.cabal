@@ -34,4 +34,4 @@ executable todo
     FlexibleContexts, FlexibleInstances, KindSignatures, StandaloneKindSignatures, LiberalTypeSynonyms, LambdaCase, FunctionalDependencies
     MultiParamTypeClasses, PackageImports, PolyKinds, RankNTypes, ViewPatterns, OverloadedStrings
     ScopedTypeVariables, TypeApplications, TypeFamilies, TypeFamilyDependencies, TypeOperators
-  ghc-options: -Wall -fno-warn-tabs -threaded
+  ghc-options: -Wall -fno-warn-tabs -threaded -fprint-potential-instances
