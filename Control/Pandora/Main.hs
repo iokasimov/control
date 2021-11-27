@@ -1,4 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 
 module Main where
 
@@ -55,17 +56,20 @@ display_section (title :*: tasks) = void $ do
 refresh :: State Section :> IO := ()
 refresh = adapt . display =<< current
 
-keystroke :: Char -> State Section ()
-keystroke 'j' = void . zoom @Section (access @Cursor) . modify
-	$ \z -> resolve @Cursor identity z # run (rotate @Right z)
-keystroke 'k' = void . zoom @Section (access @Cursor) . modify
-	$ \z -> resolve @Cursor identity z # run (rotate @Left z)
+type TUI = State Section :> IO
 
-eventloop = (eventloop !.) =<< adapt . keystroke =<< (adapt getChar !.) =<< refresh
+keystroke :: Char -> TUI ()
+keystroke 'j' = adapt # navigation @Right
+keystroke 'k' = adapt # navigation @Left
+
+navigation :: forall direction . (Morphed (Rotate direction) (Zipper List) (Maybe <:.> Zipper List)) => State Section ()
+navigation = void . zoom @Section (access @Cursor) . modify $ \z -> resolve @Cursor identity z # run (rotate @direction z)
+
+eventloop = (eventloop !.) =<< keystroke =<< (adapt getChar !.) =<< refresh
 
 main = do
 	connection <- open "facts.db"
 	today <- query_ @Task connection today_tasks
 	let Just section = run . into @(Zipper List) # list_to_list today empty
 	prepare_terminal
-	eventloop ! ("Tasks for TODAY" :*: section)
+	eventloop ! "Tasks for TODAY" :*: section
