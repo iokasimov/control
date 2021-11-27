@@ -7,6 +7,7 @@ import "pandora" Pandora.Paradigm
 import "pandora" Pandora.Pattern
 import "pandora-io" Pandora.IO
 
+import "base" Data.Char (Char)
 import "base" Data.Int (Int)
 import "base" Data.String (String)
 import "base" System.IO (getChar, putStrLn)
@@ -18,7 +19,9 @@ import Control.Pandora.Utils (list_to_list)
 
 type Task = (Int, Int, Int, String, String, String)
 
-type Section = String :*: Zipper List Task
+type Cursor = Zipper List Task
+
+type Section = String :*: Cursor
 
 show_task :: Boolean -> Task -> String
 show_task focused (_, status, mode, title, start, stop) =
@@ -37,20 +40,32 @@ show_task focused (_, status, mode, title, start, stop) =
 	show_task_boundaries 1 begin [] = "[BEGIN: " + begin + "] "
 	show_task_boundaries 1 begin complete = "[BEGIN: " + begin + "] [COMPLETE: " + complete + "] "
 
-display :: Zipper List Task -> IO ()
-display tasks = void $ do
+display :: Section -> IO ()
+display section = void $ do
 	refresh_terminal
+	display_section section
+
+display_section :: Section -> IO ()
+display_section (title :*: tasks) = void $ do
+	putStrLn # " + \ESC[1m\ESC[4m" + title + "\ESC[0m"
 	putStrLn . show_task False -<<-<<- (Reverse <-|- view (sub @Left) tasks)
 	putStrLn . show_task True -<<-<<- view (sub @Root) tasks
 	putStrLn . show_task False -<<-<<- view (sub @Right) tasks
 
-refresh :: State (Zipper List Task) :> IO := ()
+refresh :: State Section :> IO := ()
 refresh = adapt . display =<< current
+
+keystroke :: Char -> State Section ()
+keystroke 'j' = void . zoom @Section (access @Cursor) . modify
+	$ \z -> resolve @Cursor identity z # run (rotate @Right z)
+keystroke 'k' = void . zoom @Section (access @Cursor) . modify
+	$ \z -> resolve @Cursor identity z # run (rotate @Left z)
+
+eventloop = (eventloop !.) =<< adapt . keystroke =<< (adapt getChar !.) =<< refresh
 
 main = do
 	connection <- open "facts.db"
 	today <- query_ @Task connection today_tasks
-	let Just tasks = run . into @(Zipper List) # list_to_list today empty
+	let Just section = run . into @(Zipper List) # list_to_list today empty
 	prepare_terminal
-	refresh ! tasks
-	--forever $ getChar >>= print
+	eventloop ! ("Tasks for TODAY" :*: section)
