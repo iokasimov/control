@@ -113,14 +113,23 @@ today_scheduled_tasks =
 	\WHERE mode = 1 AND status = 1 AND start >= " <> start_of_today <> " AND IFNULL(stop <= " <> end_of_today <> ", 1) \
 	\ORDER BY status, mode, start, stop;"
 
-tomorrow_tasks :: Query
-tomorrow_tasks =
+tomorrow_flexible_tasks :: Query
+tomorrow_flexible_tasks =
 	"SELECT tasks.id, status, mode, title, \
 	\strftime('%H:%M', start, 'unixepoch', 'localtime'), \
 	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), '') \
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
-	\WHERE start >= " <> start_of_tomorrow <> " AND IFNULL(stop <= " <> end_of_tomorrow <> ", 1) \
-	\ORDER BY status, mode, start;"
+	\WHERE mode = 0 AND status = 1 AND start >= " <> start_of_tomorrow <> " AND IFNULL(stop <= " <> end_of_tomorrow <> ", 1) \
+	\ORDER BY status, mode, start, stop;"
+
+tomorrow_scheduled_tasks :: Query
+tomorrow_scheduled_tasks =
+	"SELECT tasks.id, status, mode, title, \
+	\strftime('%H:%M', start, 'unixepoch', 'localtime'), \
+	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), '') \
+	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
+	\WHERE mode = 1 AND status = 1 AND start >= " <> start_of_tomorrow <> " AND IFNULL(stop <= " <> end_of_tomorrow <> ", 1) \
+	\ORDER BY status, mode, start, stop;"
 
 someday_todo :: Query
 someday_todo =
@@ -135,11 +144,12 @@ overdue =
 	\WHERE status = 1 and stop < strftime('%s', 'now') \
 	\ORDER BY start;"
 
-load_all_tasks connection = (\od tds tdf tm sd -> od : tds : tdf : tm : sd : [])
+load_all_tasks connection = (\od tds tdf tms tmf sd -> od : tds : tdf : tms : tmf : sd : [])
 	<$> load_tasks_zipper connection "OVERDUE tasks" overdue
 	<*> load_tasks_zipper connection "Scheduled tasks for TODAY" today_scheduled_tasks
 	<*> load_tasks_zipper connection "Flexible tasks for TODAY" today_flexible_tasks
-	<*> load_tasks_zipper connection "Tasks for TOMORROW" tomorrow_tasks
+	<*> load_tasks_zipper connection "Scheduled tasks for TOMORROW" tomorrow_scheduled_tasks
+	<*> load_tasks_zipper connection "Flexible tasks for TOMORROW" tomorrow_flexible_tasks
 	<*> load_tasks_zipper connection "Tasks to do SOMEDAY" someday_todo
 
 load_tasks_zipper :: Connection -> String -> Query -> IO (Maybe (String, Zipper Task))
