@@ -44,35 +44,42 @@ show_task focused (_, status, mode, title, start, stop) =
 display :: Zipper List Section -> IO ()
 display sections = void $ do
 	refresh_terminal
-	display_section <<- sections
+	display_section False -<<-<<- (Reverse <-|- view (sub @Left) sections)
+	display_section True -<<-<<- view (sub @Root) sections
+	display_section False -<<-<<- view (sub @Right) sections
 
-display_section :: Section -> IO ()
-display_section (title :*: tasks) = void $ do
-	putStrLn # "\n + \ESC[1m\ESC[4m" + title + "\ESC[0m"
+display_section :: Boolean -> Section -> IO ()
+display_section active (title :*: tasks) = void $ do
+	putStrLn # show_title active title
 	putStrLn . show_task False -<<-<<- (Reverse <-|- view (sub @Left) tasks)
-	putStrLn . show_task True -<<-<<- view (sub @Root) tasks
+	putStrLn . show_task active -<<-<<- view (sub @Root) tasks
 	putStrLn . show_task False -<<-<<- view (sub @Right) tasks
 
-refresh :: State Section :> IO := ()
-refresh = adapt . display_section =<< current
+show_title False title = "\n   \ESC[4m" + title + "\ESC[0m"
+show_title True title = "\n + \ESC[1m\ESC[4m" + title + "\ESC[0m"
 
 refresh' :: State (Zipper List Section) :> IO := ()
 refresh' = adapt . display =<< current
 
 type TUI = State Section :> IO
 
-keystroke :: Char -> TUI ()
-keystroke 'j' = adapt # navigation @Right
-keystroke 'k' = adapt # navigation @Left
+--keystroke :: Char -> TUI ()
+--keystroke 'j' = adapt # navigation @Right
+--keystroke 'k' = adapt # navigation @Left
 
-keystroke' :: Char -> State (Zipper List Section) ()
-keystroke' 'j' = zoom @(Zipper List Section) (access @Section . sub @Root) (navigation @Right)
-keystroke' 'k' = zoom @(Zipper List Section) (access @Section . sub @Root) (navigation @Left)
+navigation :: Char -> State (Zipper List Section) ()
+navigation 'j' = zoom @(Zipper List Section) (access @Cursor . access @Section . sub @Root) (inner @Right)
+navigation 'k' = zoom @(Zipper List Section) (access @Cursor . access @Section . sub @Root) (inner @Left)
+navigation 'l' = outer @Right
+navigation 'h' = outer @Left
 
-navigation :: forall direction . (Morphed (Rotate direction) (Zipper List) (Maybe <:.> Zipper List)) => State Section ()
-navigation = void . zoom @Section (access @Cursor) . modify $ \z -> resolve @Cursor identity z # run (rotate @direction z)
+inner :: forall direction . (Morphed (Rotate direction) (Zipper List) (Maybe <:.> Zipper List)) => State (Zipper List Task) ()
+inner = void . modify $ \z -> resolve @Cursor identity z # run (rotate @direction z)
 
-eventloop = (eventloop !.) =<< adapt . keystroke' =<< (adapt getChar !.) =<< refresh'
+outer :: forall direction . (Morphed (Rotate direction) (Zipper List) (Maybe <:.> Zipper List)) => State (Zipper List Section) ()
+outer = void . modify $ \z -> resolve @(Zipper List Section) identity z # run (rotate @direction z)
+
+eventloop = (eventloop !.) =<< adapt . navigation =<< (adapt getChar !.) =<< refresh'
 
 load_tasks_zipper connection (title :*: q) =
 	((:*:) title <-|-) . run . into @(Zipper List) . list_to_list empty <-|- query_ @Task connection q
