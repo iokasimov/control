@@ -80,55 +80,65 @@ print_unfocused_task t =
 
 show_task :: Task -> String
 show_task (_, status, mode, title, start, stop) = 
-	show_task_status status <> show_task_boundaries mode start stop <> title
+	show_task_status status <> show_task_boundaries start stop <> title
 
 show_task_status (-2) = "[LATE] "
 show_task_status (-1) = "[GONE] "
 show_task_status 0 = "[DONE] "
 show_task_status 1 = "[TODO] "
 
-show_task_boundaries 0 ready [] = "[READY: " <> ready <> "] "
-show_task_boundaries 0 ready deadline = "[READY: " <> ready <> "] [DEADLINE: " <> deadline <> "] "
-show_task_boundaries 1 begin [] = "[BEGIN: " <> begin <> "] "
-show_task_boundaries 1 begin complete = "[BEGIN: " <> begin <> "] [COMPLETE: " <> complete <> "] "
+show_task_boundaries ready [] = "[" <> ready <> "-.....] "
+show_task_boundaries ready deadline = "[" <> ready <> "-" <> deadline <> "] "
+show_task_boundaries begin [] = "[" <> begin <> "-.....] "
+show_task_boundaries begin complete = "[" <> begin <> "-" <> complete <> "] "
 
 title_with_counter title count =
 	title <> " (" <> show count <> ")"
 
-today_tasks :: Query
-today_tasks =
-	"SELECT tasks.id, status, task_event_priority, title, \
+today_flexible_tasks :: Query
+today_flexible_tasks =
+	"SELECT tasks.id, status, mode, title, \
 	\strftime('%H:%M', start, 'unixepoch', 'localtime'), \
 	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), '') \
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
-	\WHERE start >= " <> start_of_today <> " AND IFNULL(stop <= " <> end_of_today <> ", 1) \
-	\ORDER BY status, task_event_priority, start;"
+	\WHERE mode = 0 AND status = 1 AND start >= " <> start_of_today <> " AND IFNULL(stop <= " <> end_of_today <> ", 1) \
+	\ORDER BY status, mode, start, stop;"
+
+today_scheduled_tasks :: Query
+today_scheduled_tasks =
+	"SELECT tasks.id, status, mode, title, \
+	\strftime('%H:%M', start, 'unixepoch', 'localtime'), \
+	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), '') \
+	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
+	\WHERE mode = 1 AND status = 1 AND start >= " <> start_of_today <> " AND IFNULL(stop <= " <> end_of_today <> ", 1) \
+	\ORDER BY status, mode, start, stop;"
 
 tomorrow_tasks :: Query
 tomorrow_tasks =
-	"SELECT tasks.id, status, task_event_priority, title, \
+	"SELECT tasks.id, status, mode, title, \
 	\strftime('%H:%M', start, 'unixepoch', 'localtime'), \
 	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), '') \
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
 	\WHERE start >= " <> start_of_tomorrow <> " AND IFNULL(stop <= " <> end_of_tomorrow <> ", 1) \
-	\ORDER BY status, task_event_priority, start;"
+	\ORDER BY status, mode, start;"
 
 someday_todo :: Query
 someday_todo =
-	"SELECT tasks.id, 1, task_event_priority, title, strftime('%d.%m', start, 'unixepoch', 'localtime'), '' \
+	"SELECT tasks.id, 1, mode, title, strftime('%d.%m', start, 'unixepoch', 'localtime'), '' \
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
-	\WHERE stop IS NULL AND status = 1 AND task_event_priority = 0;"
+	\WHERE stop IS NULL AND status = 1 AND mode = 0;"
 
 overdue :: Query
 overdue =
-	"SELECT tasks.id, -2, task_event_priority, title, strftime('%d.%m %H:%M', start, 'unixepoch', 'localtime'), strftime('%d.%m %H:%M', stop, 'unixepoch', 'localtime') \
+	"SELECT tasks.id, -2, mode, title, strftime('%d.%m %H:%M', start, 'unixepoch', 'localtime'), strftime('%d.%m %H:%M', stop, 'unixepoch', 'localtime') \
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
 	\WHERE status = 1 and stop < strftime('%s', 'now') \
 	\ORDER BY start;"
 
-load_all_tasks connection = (\od td tm sd -> od : td : tm : sd : [])
+load_all_tasks connection = (\od tds tdf tm sd -> od : tds : tdf : tm : sd : [])
 	<$> load_tasks_zipper connection "OVERDUE tasks" overdue
-	<*> load_tasks_zipper connection "Tasks for TODAY" today_tasks
+	<*> load_tasks_zipper connection "Scheduled tasks for TODAY" today_scheduled_tasks
+	<*> load_tasks_zipper connection "Flexible tasks for TODAY" today_flexible_tasks
 	<*> load_tasks_zipper connection "Tasks for TOMORROW" tomorrow_tasks
 	<*> load_tasks_zipper connection "Tasks to do SOMEDAY" someday_todo
 
@@ -147,10 +157,5 @@ main = do
 	hSetBuffering stdin NoBuffering
 	hSetEcho stdin False
 	putStr "\ESC[?25l"
-
-	--query_ @Task connection today_tasks >>= \case
-	--	t : ts -> print_focused_tasks ("TODAY", Zipper [] t ts)
-
 	refresh_tasks connection >>= evalStateT
 		(forever $ display *> (lift getChar >>= keystroke connection))
-	--flip evalStateT (Zipper (overdue <> still) (head today) (tail today))
