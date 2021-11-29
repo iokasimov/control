@@ -137,6 +137,15 @@ someday_todo =
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
 	\WHERE stop IS NULL AND status = 1 AND mode = 0;"
 
+this_month_scheduled_tasks :: Query
+this_month_scheduled_tasks =
+	"SELECT tasks.id, status, mode, title, \
+	\strftime('%d.%M', start, 'unixepoch', 'localtime'), \
+	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), '') \
+	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
+	\WHERE mode = 1 AND status = 1 AND start >= " <> end_of_tomorrow <> " AND IFNULL(stop <= strftime('%s', 'now','start of month','+1 month','-1 day'), 1) \
+	\ORDER BY status, mode, start, stop;"
+
 overdue :: Query
 overdue =
 	"SELECT tasks.id, -2, mode, title, strftime('%d.%m %H:%M', start, 'unixepoch', 'localtime'), strftime('%d.%m %H:%M', stop, 'unixepoch', 'localtime') \
@@ -144,12 +153,13 @@ overdue =
 	\WHERE status = 1 and stop < strftime('%s', 'now') \
 	\ORDER BY start;"
 
-load_all_tasks connection = (\od tds tdf tms tmf sd -> od : tds : tdf : tms : tmf : sd : [])
+load_all_tasks connection = (\od tds tdf tms tmf month_s sd -> od : tds : tdf : tms : tmf : month_s : sd : [])
 	<$> load_tasks_zipper connection "OVERDUE tasks" overdue
 	<*> load_tasks_zipper connection "Scheduled tasks for TODAY" today_scheduled_tasks
 	<*> load_tasks_zipper connection "Flexible tasks for TODAY" today_flexible_tasks
 	<*> load_tasks_zipper connection "Scheduled tasks for TOMORROW" tomorrow_scheduled_tasks
 	<*> load_tasks_zipper connection "Flexible tasks for TOMORROW" tomorrow_flexible_tasks
+	<*> load_tasks_zipper connection "Scheduled tasks for THIS MONTH" this_month_scheduled_tasks
 	<*> load_tasks_zipper connection "Tasks to do SOMEDAY" someday_todo
 
 load_tasks_zipper :: Connection -> String -> Query -> IO (Maybe (String, Zipper Task))
