@@ -30,18 +30,18 @@ keystroke connection 'r' = lift (refresh_tasks connection) >>= put
 keystroke connection 'D' = do
 	focus . snd . focus <$> get >>= \(task_id, status, mode, title, start, stop) -> do
 		lift $ execute connection update_task_status (0 :: Int, task_id)
-		modify $ \(Zipper bs (title, Zipper bbs x ffs) fs) ->
-			Zipper bs (title, Zipper bbs (task_id, 0, mode, title, start, stop) ffs) fs
+		modify $ \(Zipper bs (section, Zipper bbs x ffs) fs) ->
+			Zipper bs (section, Zipper bbs (task_id, 0, mode, title, start, stop) ffs) fs
 keystroke connection 'C' = do
 	focus . snd . focus <$> get >>= \(task_id, status, mode, title, start, stop) -> do
 		lift $ execute connection update_task_status (-1 :: Int, task_id)
-		modify $ \(Zipper bs (title, Zipper bbs x ffs) fs) ->
-			Zipper bs (title, Zipper bbs (task_id, -1, mode, title, start, stop) ffs) fs
+		modify $ \(Zipper bs (section, Zipper bbs x ffs) fs) ->
+			Zipper bs (section, Zipper bbs (task_id, -1, mode, title, start, stop) ffs) fs
 keystroke connection 'T' = do
 	focus . snd . focus <$> get >>= \(task_id, status, mode, title, start, stop) -> do
 		lift $ execute connection update_task_status (1 :: Int, task_id)
-		modify $ \(Zipper bs (title, Zipper bbs x ffs) fs) ->
-			Zipper bs (title, Zipper bbs (task_id, 1, mode, title, start, stop) ffs) fs
+		modify $ \(Zipper bs (section, Zipper bbs x ffs) fs) ->
+			Zipper bs (section, Zipper bbs (task_id, 1, mode, title, start, stop) ffs) fs
 keystroke _ _ = pure ()
 
 update_task_status :: Query
@@ -57,14 +57,14 @@ display = do
 		traverse print_unfocused_tasks fs
 		putStr "\n"
 
-print_focused_tasks (title, Zipper bs x fs) = void $ do
-	putStrLn $ " + \ESC[1m\ESC[4m" <> title <> "\ESC[0m"
+print_focused_tasks (section, Zipper bs x fs) = void $ do
+	putStrLn $ " + \ESC[1m\ESC[4m" <> section <> "\ESC[0m"
 	print_tasks $ Reverse bs
 	print_focused_task x
 	print_tasks $ fs
 
-print_unfocused_tasks (title, Zipper bs x fs) = void $ do
-	putStrLn $ "\n   \ESC[4m" <> title <> "\ESC[0m"
+print_unfocused_tasks (section, Zipper bs x fs) = void $ do
+	putStrLn $ "\n   \ESC[4m" <> section <> "\ESC[0m"
 	print_tasks $ Reverse bs
 	print_unfocused_task x
 	print_tasks $ fs
@@ -163,8 +163,8 @@ load_all_tasks connection = (\od tds tdf tms tmf month_s sd -> od : tds : tdf : 
 	<*> load_tasks_zipper connection "Tasks to do SOMEDAY" someday_todo
 
 load_tasks_zipper :: Connection -> String -> Query -> IO (Maybe (String, Zipper Task))
-load_tasks_zipper connection title q = query_ @Task connection q <&> \case
-	t : ts -> Just $ (title, Zipper [] t ts)
+load_tasks_zipper connection section q = query_ @Task connection q <&> \case
+	t : ts -> Just $ (section, Zipper [] t ts)
 	[] -> Nothing
 
 refresh_tasks connection = do
