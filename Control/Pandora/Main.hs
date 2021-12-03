@@ -12,7 +12,7 @@ import "base" Data.Char (Char)
 import "base" Data.Int (Int)
 import "base" Data.String (String)
 import "base" System.IO (getChar, putStrLn)
-import "sqlite-simple" Database.SQLite.Simple (Query, open, query_)
+import "sqlite-simple" Database.SQLite.Simple (Connection, Query, open, query_, execute)
 
 import Control.Pandora.SQLite (today_tasks, update_task_status)
 import Control.Pandora.TUI (prepare_terminal, refresh_terminal)
@@ -48,14 +48,17 @@ display tasks = void $ do
 show_title False title = "\n   \ESC[4m" + title + "\ESC[0m"
 show_title True title = "\n + \ESC[1m\ESC[4m" + title + "\ESC[0m"
 
-refresh :: State (Zipper List Task) :> IO := ()
+refresh :: TUI ()
 refresh = adapt . display =<< current
 
-type TUI = State (Zipper List Task) :> IO
+type TUI = Environment Connection :> State (Zipper List Task) :> IO
 
 keystroke :: Char -> TUI ()
 keystroke 'j' = adapt # navigation @Right
 keystroke 'k' = adapt # navigation @Left
+
+complete_task :: Connection -> Int -> IO ()
+complete_task connection tid = execute connection update_task_status (1 :: Int, tid)
 
 navigation :: forall direction . (Morphed (Rotate direction) (Zipper List) (Maybe <:.> Zipper List)) => State (Zipper List Task) ()
 navigation = void . modify $ \z -> resolve @(Zipper List Task) identity z # run (rotate @direction z)
@@ -67,4 +70,4 @@ main = do
 	today <- query_ @Task connection today_tasks
 	let Just tasks = run . into @(Zipper List) # list_to_list empty today
 	prepare_terminal
-	eventloop ! tasks
+	(eventloop ! connection) ! tasks
