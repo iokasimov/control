@@ -5,11 +5,22 @@ import "pandora" Pandora.Paradigm ((:*:) ((:*:)))
 import "base" Data.Int (Int)
 import "base" Data.String (String)
 import "base" Data.Semigroup ((<>))
-import "sqlite-simple" Database.SQLite.Simple (Connection, Query, FromRow (fromRow), field, open, query_, execute)
+import "sqlite-simple" Database.SQLite.Simple (Query, SQLData (SQLInteger))
+import "sqlite-simple" Database.SQLite.Simple.FromRow (FromRow (fromRow), field)
+import "sqlite-simple" Database.SQLite.Simple.FromField (FromField (fromField), returnError)
+import "sqlite-simple" Database.SQLite.Simple.Internal (Field (Field))
 
+import Control.Pandora.Task (Task, Status (TODO, DONE, GONE, LATE))
 import Control.SQL.Query (start_of_today, end_of_today, start_of_tomorrow, end_of_tomorrow)
 
-instance FromRow (Int :*: Int :*: Int :*: String :*: String :*: String) where
+instance FromField Status where
+	fromField (Field (SQLInteger 1) _) = pure TODO
+	fromField (Field (SQLInteger 0) _) = pure DONE
+	fromField (Field (SQLInteger (-1)) _) = pure GONE
+	fromField (Field (SQLInteger (-2)) _) = pure LATE
+	fromField (Field (SQLInteger (-2)) _) = pure LATE
+
+instance FromRow Task where
 	fromRow = (\id status mode title start stop -> id :*: status :*: mode :*: title :*: start :*: stop)
 		<$> field <*> field <*> field <*> field <*> field <*> field
 

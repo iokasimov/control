@@ -11,26 +11,21 @@ import "pandora-io" Pandora.IO
 import "base" Data.Char (Char)
 import "base" Data.Int (Int)
 import "base" Data.String (String)
+import "base" Text.Show (show)
 import "base" System.IO (getChar, putStrLn)
 import "sqlite-simple" Database.SQLite.Simple (Connection, Query, open, query_, execute)
 
+import Control.Pandora.Task (Task)
 import Control.Pandora.SQLite (today_tasks, update_task_status)
 import Control.Pandora.TUI (prepare_terminal, refresh_terminal)
 import Control.Pandora.Utils (list_to_list)
 
-type Task = Int :*: Int :*: Int :*: String :*: String :*: String
-
 show_task :: Boolean -> Task -> String
 show_task focused (_ :*: status :*: mode :*: title :*: start :*: stop) =
-	focused_mark focused + show_task_status status + show_task_boundaries mode start stop + title where
+	focused_mark focused + "[" + show status + "] " + show_task_boundaries mode start stop + title where
 
 	focused_mark True = " * "
 	focused_mark False = "   "
-
-	show_task_status (-2) = "[LATE] "
-	show_task_status (-1) = "[GONE] "
-	show_task_status 0 = "[DONE] "
-	show_task_status 1 = "[TODO] "
 
 	show_task_boundaries 0 ready [] = "[READY: " + ready + "] "
 	show_task_boundaries 0 ready deadline = "[READY: " + ready + "] [DEADLINE: " + deadline + "] "
