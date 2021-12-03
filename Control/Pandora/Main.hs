@@ -54,10 +54,12 @@ instance Accessible field Task => Accessible field (Tape List Task) where
 keystroke :: Char -> TUI ()
 keystroke 'j' = adapt # navigation @Right
 keystroke 'k' = adapt # navigation @Left
-keystroke 'D' = void $ zoom @(Tape List Task) # access @Status # replace DONE
 
-complete :: Connection -> Int -> IO ()
-complete connection tid = execute connection update_task_status (1 :: Int, tid)
+update_status_view :: Status -> State (Tape List Task) ()
+update_status_view status = adapt . void $ zoom @(Tape List Task) @_ @(State _) # access @Status # replace status
+
+update_task_row :: Connection -> Int -> Status -> TUI ()
+update_task_row connection id status = adapt $ execute connection update_task_status (status, id)
 
 navigation :: forall direction . (Morphed (Rotate direction) (Tape List) (Maybe <:.> Tape List)) => State (Tape List Task) ()
 navigation = void . modify $ \z -> resolve @(Tape List Task) identity z # run (rotate @direction z)

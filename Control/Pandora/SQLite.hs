@@ -7,7 +7,8 @@ import "base" Data.String (String)
 import "base" Data.Semigroup ((<>))
 import "sqlite-simple" Database.SQLite.Simple (Query, SQLData (SQLInteger))
 import "sqlite-simple" Database.SQLite.Simple.FromRow (FromRow (fromRow), field)
-import "sqlite-simple" Database.SQLite.Simple.FromField (FromField (fromField), returnError)
+import "sqlite-simple" Database.SQLite.Simple.FromField (FromField (fromField))
+import "sqlite-simple" Database.SQLite.Simple.ToField (ToField (toField))
 import "sqlite-simple" Database.SQLite.Simple.Internal (Field (Field))
 
 import Control.Pandora.Task (Task, Status (TODO, DONE, GONE, LATE))
@@ -18,7 +19,12 @@ instance FromField Status where
 	fromField (Field (SQLInteger 0) _) = pure DONE
 	fromField (Field (SQLInteger (-1)) _) = pure GONE
 	fromField (Field (SQLInteger (-2)) _) = pure LATE
-	fromField (Field (SQLInteger (-2)) _) = pure LATE
+
+instance ToField Status where
+	toField TODO = SQLInteger 1
+	toField DONE = SQLInteger 0
+	toField GONE = SQLInteger (-1)
+	toField LATE = SQLInteger (-2)
 
 instance FromRow Task where
 	fromRow = (\id status mode title start stop -> id :*: status :*: mode :*: title :*: start :*: stop)
