@@ -18,10 +18,10 @@ import Control.Pandora.SQLite (today_tasks, update_task_status)
 import Control.Pandora.TUI (prepare_terminal, refresh_terminal)
 import Control.Pandora.Utils (list_to_list)
 
-type Task = (Int, Int, Int, String, String, String)
+type Task = Int :*: Int :*: Int :*: String :*: String :*: String
 
 show_task :: Boolean -> Task -> String
-show_task focused (_, status, mode, title, start, stop) =
+show_task focused (_ :*: status :*: mode :*: title :*: start :*: stop) =
 	focused_mark focused + show_task_status status + show_task_boundaries mode start stop + title where
 
 	focused_mark True = " * "

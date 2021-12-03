@@ -1,14 +1,17 @@
 module Control.Pandora.SQLite where
 
-import "pandora" Pandora.Core
-import "pandora" Pandora.Paradigm
-import "pandora" Pandora.Pattern
-import "pandora-io" Pandora.IO
+import "pandora" Pandora.Paradigm ((:*:) ((:*:)))
 
+import "base" Data.Int (Int)
+import "base" Data.String (String)
 import "base" Data.Semigroup ((<>))
-import "sqlite-simple" Database.SQLite.Simple (Connection, Query, open, query_, execute)
+import "sqlite-simple" Database.SQLite.Simple (Connection, Query, FromRow (fromRow), field, open, query_, execute)
 
 import Control.SQL.Query (start_of_today, end_of_today, start_of_tomorrow, end_of_tomorrow)
+
+instance FromRow (Int :*: Int :*: Int :*: String :*: String :*: String) where
+	fromRow = (\id status mode title start stop -> id :*: status :*: mode :*: title :*: start :*: stop)
+		<$> field <*> field <*> field <*> field <*> field <*> field
 
 update_task_status :: Query
 update_task_status = "UPDATE tasks SET status = ? WHERE id = ?"
