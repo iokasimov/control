@@ -15,7 +15,7 @@ import "base" Text.Show (show)
 import "base" System.IO (getChar, putStrLn)
 import "sqlite-simple" Database.SQLite.Simple (Connection, Query, open, query_, execute)
 
-import Control.Pandora.Task (Task, Status (DONE))
+import Control.Pandora.Task (Task, Status (TODO, DONE, GONE))
 import Control.Pandora.SQLite (today_tasks, update_task_status)
 import Control.Pandora.TUI (prepare_terminal, refresh_terminal)
 import Control.Pandora.Utils (list_to_list)
@@ -52,8 +52,17 @@ instance Accessible field Task => Accessible field (Tape List Task) where
 	access = access @field . access @Task . sub @Root
 
 keystroke :: Char -> TUI ()
+keystroke 'r' = point ()
 keystroke 'j' = adapt # navigation @Right
 keystroke 'k' = adapt # navigation @Left
+keystroke 'D' = change_status DONE
+keystroke 'T' = change_status TODO
+keystroke 'G' = change_status GONE
+
+change_status :: Status -> TUI ()
+change_status new = identity =<< update_task_row <-|- env
+	<-*- zoom @(Tape List Task) access (current @Int)
+	<-*- zoom @(Tape List Task) access (replace new)
 
 update_status_view :: Status -> State (Tape List Task) ()
 update_status_view status = adapt . void $ zoom @(Tape List Task) @_ @(State _) # access @Status # replace status

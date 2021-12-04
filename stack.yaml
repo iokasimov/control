@@ -7,7 +7,7 @@ extra-deps:
 - github: iokasimov/joint
   commit: 327c378f821e5c1bba9504a615166da6c0969764
 - github: iokasimov/pandora
-  commit: 37fb35bc918b90b88c38b860571148bd9c317b04
+  commit: dbc6d9ea0852be1ef2a81ff9987337524eb9ac01
 - github: iokasimov/pandora-io
   commit: 771cfca426680b44c951a687b58e093a8e0a59fe
 - ghc-prim-0.6.1@sha256:4707f24d1d435d00a0a771114cebe760348f60a653bc6b33dca4cff74ad107c6,2371
