@@ -27,10 +27,10 @@ show_task focused (_ :*: status :*: mode :*: title :*: start :*: stop) =
 	focused_mark True = " * "
 	focused_mark False = "   "
 
-	show_task_boundaries 0 ready [] = "[READY: " + ready + "] "
-	show_task_boundaries 0 ready deadline = "[READY: " + ready + "] [DEADLINE: " + deadline + "] "
-	show_task_boundaries 1 begin [] = "[BEGIN: " + begin + "] "
-	show_task_boundaries 1 begin complete = "[BEGIN: " + begin + "] [COMPLETE: " + complete + "] "
+	show_task_boundaries 0 ready [] = "{" + ready + " - ....."
+	show_task_boundaries 0 ready deadline = "{" + ready + " - " + deadline + "} "
+	show_task_boundaries 1 begin [] = "{" + begin + " - ....."
+	show_task_boundaries 1 begin complete = "{" + begin + " - " + complete + "} "
 
 display :: Tape List Task -> IO ()
 display tasks = void $ do
@@ -63,9 +63,6 @@ change_status :: Status -> TUI ()
 change_status new = identity =<< update_task_row <-|- env
 	<-*- zoom @(Tape List Task) access (current @Int)
 	<-*- zoom @(Tape List Task) access (replace new)
-
-update_status_view :: Status -> State (Tape List Task) ()
-update_status_view status = adapt . void $ zoom @(Tape List Task) @_ @(State _) # access @Status # replace status
 
 update_task_row :: Connection -> Int -> Status -> TUI ()
 update_task_row connection id status = adapt $ execute connection update_task_status (status, id)
