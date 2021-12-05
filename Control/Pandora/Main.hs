@@ -18,7 +18,7 @@ import "sqlite-simple" Database.SQLite.Simple (Connection, Query, open, query_, 
 import Control.Pandora.Task (Task, Status (TODO, DONE, GONE))
 import Control.Pandora.SQLite (today_tasks, update_task_status)
 import Control.Pandora.TUI (prepare_terminal, refresh_terminal)
-import Control.Pandora.Utils (list_to_list)
+import Control.Pandora.Utils (castASCII, list_to_list)
 
 show_task :: Boolean -> Task -> String
 show_task focused (_ :*: status :*: mode :*: title :*: start :*: stop) =
@@ -51,13 +51,14 @@ type TUI = Environment Connection :> State (Tape List Task) :> IO
 instance Accessible field Task => Accessible field (Tape List Task) where
 	access = access @field . access @Task . sub @Root
 
-keystroke :: Char -> TUI ()
-keystroke 'r' = point ()
-keystroke 'j' = adapt # navigation @Right
-keystroke 'k' = adapt # navigation @Left
-keystroke 'D' = change_status DONE
-keystroke 'T' = change_status TODO
-keystroke 'G' = change_status GONE
+handle :: Maybe ASCII -> TUI ()
+handle (Just (Letter Lower R)) = point ()
+handle (Just (Letter Lower J)) = adapt # navigation @Right
+handle (Just (Letter Lower K)) = adapt # navigation @Left
+handle (Just (Letter Upper D)) = change_status DONE
+handle (Just (Letter Upper T)) = change_status TODO
+handle (Just (Letter Upper G)) = change_status GONE
+handle c = point ()
 
 change_status :: Status -> TUI ()
 change_status new = identity =<< update_task_row <-|- env
@@ -70,14 +71,15 @@ update_task_row connection id status = adapt $ execute connection update_task_st
 navigation :: forall direction . (Morphed (Rotate direction) (Tape List) (Maybe <:.> Tape List)) => State (Tape List Task) ()
 navigation = void . modify $ \z -> resolve @(Tape List Task) identity z # run (rotate @direction z)
 
---keystroke = <-|- adapt getChar
+keystroke :: TUI (Maybe ASCII)
+keystroke = castASCII <-|- adapt getChar
 
 eventloop :: TUI ()
-eventloop = forever_ # keystroke =<< adapt getChar -*- refresh
+eventloop = forever_ $ handle =<< keystroke -*- refresh
 
 main = do
 	connection <- open "facts.db"
 	today <- query_ @Task connection today_tasks
 	let Just tasks = run . into @(Tape List) # list_to_list empty today
 	prepare_terminal
-	(eventloop ! connection) ! tasks
+	eventloop ! connection ! tasks
