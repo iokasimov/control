@@ -85,64 +85,64 @@ castASCII c = case ord c of
 	62 -> Just $ Sign $ Bracket Closed Angle
 	63 -> Just $ Sign Question
 	64 -> Just $ Sign At
-	65 -> Just $ Leter Upper A
-	66 -> Just $ Leter Upper B
-	67 -> Just $ Leter Upper C
-	68 -> Just $ Leter Upper D
-	69 -> Just $ Leter Upper E
-	70 -> Just $ Leter Upper F
-	71 -> Just $ Leter Upper G
-	72 -> Just $ Leter Upper H
-	73 -> Just $ Leter Upper I
-	74 -> Just $ Leter Upper J
-	75 -> Just $ Leter Upper K
-	76 -> Just $ Leter Upper L
-	77 -> Just $ Leter Upper M
-	78 -> Just $ Leter Upper N
-	79 -> Just $ Leter Upper O
-	80 -> Just $ Leter Upper P
-	81 -> Just $ Leter Upper Q
-	82 -> Just $ Leter Upper R
-	83 -> Just $ Leter Upper S
-	84 -> Just $ Leter Upper T
-	85 -> Just $ Leter Upper U
-	86 -> Just $ Leter Upper V
-	87 -> Just $ Leter Upper W
-	88 -> Just $ Leter Upper X
-	89 -> Just $ Leter Upper Y
-	90 -> Just $ Leter Upper Z
+	65 -> Just $ Letter Upper A
+	66 -> Just $ Letter Upper B
+	67 -> Just $ Letter Upper C
+	68 -> Just $ Letter Upper D
+	69 -> Just $ Letter Upper E
+	70 -> Just $ Letter Upper F
+	71 -> Just $ Letter Upper G
+	72 -> Just $ Letter Upper H
+	73 -> Just $ Letter Upper I
+	74 -> Just $ Letter Upper J
+	75 -> Just $ Letter Upper K
+	76 -> Just $ Letter Upper L
+	77 -> Just $ Letter Upper M
+	78 -> Just $ Letter Upper N
+	79 -> Just $ Letter Upper O
+	80 -> Just $ Letter Upper P
+	81 -> Just $ Letter Upper Q
+	82 -> Just $ Letter Upper R
+	83 -> Just $ Letter Upper S
+	84 -> Just $ Letter Upper T
+	85 -> Just $ Letter Upper U
+	86 -> Just $ Letter Upper V
+	87 -> Just $ Letter Upper W
+	88 -> Just $ Letter Upper X
+	89 -> Just $ Letter Upper Y
+	90 -> Just $ Letter Upper Z
 	91 -> Just $ Sign $ Bracket Opened Square
 	92 -> Just $ Sign $ Slash Back
 	93 -> Just $ Sign $ Bracket Closed Square
 	94 -> Just $ Sign Caret
 	95 -> Just $ Sign Underscore
 	96 -> Just $ Sign Accent
-	97 -> Just $ Leter Lower A
-	98 -> Just $ Leter Lower B
-	99 -> Just $ Leter Lower C
-	100 -> Just $ Leter Lower D
-	101 -> Just $ Leter Lower E
-	102 -> Just $ Leter Lower F
-	103 -> Just $ Leter Lower G
-	104 -> Just $ Leter Lower H
-	105 -> Just $ Leter Lower I
-	106 -> Just $ Leter Lower J
-	107 -> Just $ Leter Lower K
-	108 -> Just $ Leter Lower L
-	109 -> Just $ Leter Lower M
-	110 -> Just $ Leter Lower N
-	111 -> Just $ Leter Lower O
-	112 -> Just $ Leter Lower P
-	113 -> Just $ Leter Lower Q
-	114 -> Just $ Leter Lower R
-	115 -> Just $ Leter Lower S
-	116 -> Just $ Leter Lower T
-	117 -> Just $ Leter Lower U
-	118 -> Just $ Leter Lower V
-	119 -> Just $ Leter Lower W
-	120 -> Just $ Leter Lower X
-	121 -> Just $ Leter Lower Y
-	122 -> Just $ Leter Lower Z
+	97 -> Just $ Letter Lower A
+	98 -> Just $ Letter Lower B
+	99 -> Just $ Letter Lower C
+	100 -> Just $ Letter Lower D
+	101 -> Just $ Letter Lower E
+	102 -> Just $ Letter Lower F
+	103 -> Just $ Letter Lower G
+	104 -> Just $ Letter Lower H
+	105 -> Just $ Letter Lower I
+	106 -> Just $ Letter Lower J
+	107 -> Just $ Letter Lower K
+	108 -> Just $ Letter Lower L
+	109 -> Just $ Letter Lower M
+	110 -> Just $ Letter Lower N
+	111 -> Just $ Letter Lower O
+	112 -> Just $ Letter Lower P
+	113 -> Just $ Letter Lower Q
+	114 -> Just $ Letter Lower R
+	115 -> Just $ Letter Lower S
+	116 -> Just $ Letter Lower T
+	117 -> Just $ Letter Lower U
+	118 -> Just $ Letter Lower V
+	119 -> Just $ Letter Lower W
+	120 -> Just $ Letter Lower X
+	121 -> Just $ Letter Lower Y
+	122 -> Just $ Letter Lower Z
 	123 -> Just $ Sign $ Bracket Opened Curly
 	124 -> Just $ Sign Bar
 	125 -> Just $ Sign $ Bracket Closed Curly

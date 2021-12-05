@@ -70,7 +70,10 @@ update_task_row connection id status = adapt $ execute connection update_task_st
 navigation :: forall direction . (Morphed (Rotate direction) (Tape List) (Maybe <:.> Tape List)) => State (Tape List Task) ()
 navigation = void . modify $ \z -> resolve @(Tape List Task) identity z # run (rotate @direction z)
 
-eventloop = (eventloop !.) =<< keystroke =<< (adapt getChar !.) =<< refresh
+--keystroke = <-|- adapt getChar
+
+eventloop :: TUI ()
+eventloop = forever_ # keystroke =<< adapt getChar -*- refresh
 
 main = do
 	connection <- open "facts.db"
