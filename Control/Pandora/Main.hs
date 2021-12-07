@@ -22,9 +22,9 @@ import Control.Pandora.TUI (prepare_terminal, refresh_terminal)
 import Control.Pandora.Utils (castASCII, list_to_list)
 
 show_event :: Event -> String
-show_event (title :*: start :*: stop :*: total) = show_event_boundaries start stop total + title where
+show_event (title :*: start :*: stop :*: total) = "   " + show_event_boundaries start stop total + title where
 
-	show_event_boundaries start stop total = "{" + start + " - " + stop + " -> " + total + "} "
+	show_event_boundaries start stop total = "{" + start + " - " + stop + " => " + total + "} "
 
 show_task :: Boolean -> Task -> String
 show_task focused (_ :*: status :*: mode :*: title :*: start :*: stop) =
@@ -38,9 +38,11 @@ show_task focused (_ :*: status :*: mode :*: title :*: start :*: stop) =
 	show_task_boundaries 1 begin [] = "{" + begin + " - ....."
 	show_task_boundaries 1 begin complete = "{" + begin + " - " + complete + "} "
 
-display :: Tape List Task -> IO ()
-display tasks = void $ do
+display :: Events :*: Tasks -> IO ()
+display (events :*: tasks) = void $ do
 	refresh_terminal
+	putStrLn $ "\n   \ESC[1m\ESC[4m" + "Events for today" + "\ESC[0m\n"
+	putStrLn . show_event <<- events
 	putStrLn $ "\n   \ESC[1m\ESC[4m" + "Tasks for today" + "\ESC[0m\n"
 	putStrLn . show_task False -<<-<<- (Reverse <-|- view (sub @Left) tasks)
 	putStrLn . show_task True -<<-<<- view (sub @Root) tasks
@@ -52,15 +54,19 @@ show_title True title = "\n + \ESC[1m\ESC[4m" + title + "\ESC[0m"
 refresh :: TUI ()
 refresh = adapt . display =<< current
 
-type TUI = Environment Connection :> State (Tape List Task) :> IO
+type Events = List Event
+type Tasks = Tape List Task
+type Model = Events :*: Tasks
 
-instance Accessible field Task => Accessible field (Tape List Task) where
+type TUI = Environment Connection :> State Model :> IO
+
+instance Accessible field Task => Accessible field Tasks where
 	access = access @field . access @Task . sub @Root
 
 handle :: Maybe ASCII -> TUI ()
 handle (Just (Letter Lower R)) = point ()
-handle (Just (Letter Lower J)) = adapt # navigation @Right
-handle (Just (Letter Lower K)) = adapt # navigation @Left
+handle (Just (Letter Lower J)) = adapt # zoom @Model @Tasks @(State _) access (navigation @Right)
+handle (Just (Letter Lower K)) = adapt # zoom @Model @Tasks @(State _) access (navigation @Left)
 handle (Just (Letter Upper D)) = change_status DONE
 handle (Just (Letter Upper T)) = change_status TODO
 handle (Just (Letter Upper G)) = change_status GONE
@@ -68,8 +74,8 @@ handle c = point ()
 
 change_status :: Status -> TUI ()
 change_status new = identity =<< update_task_row <-|- env
-	<-*- zoom @(Tape List Task) access (current @Int)
-	<-*- zoom @(Tape List Task) access (replace new)
+	<-*- zoom @Model access (current @Int)
+	<-*- zoom @Model access (replace new)
 
 update_task_row :: Connection -> Int -> Status -> TUI ()
 update_task_row connection id status = adapt $ execute connection update_task_status (status, id)
@@ -88,4 +94,4 @@ main = do
 	Just tasks <- run . into @(Tape List) . list_to_list empty <-|- query_ @Task connection today_tasks
 	events <- list_to_list empty <-|- query_ @Event connection today_events
 	prepare_terminal
-	eventloop ! connection ! tasks
+	eventloop ! connection ! (events :*: tasks)
