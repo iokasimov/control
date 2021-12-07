@@ -48,6 +48,23 @@ display (events :*: tasks) = void $ do
 	putStrLn . show_task True -<<-<<- view (sub @Root) tasks
 	putStrLn . show_task False -<<-<<- view (sub @Right) tasks
 
+confirm_change_status :: Status -> TUI (Maybe Status)
+confirm_change_status status = choice =<< keystroke
+	-*- (adapt . message =<< adapt title) -*- adapt refresh_terminal where
+
+	message :: String -> IO ()
+	message task = putStrLn
+		$ "\n   \ESC[4m" + "Are you sure you want to mark \""
+		+ task + "\" as [\ESC[7m" + show status + "\ESC[27m]? (Yes/No)\ESC[24m\n"
+
+	title :: State Model String
+	title = zoom @Model (access @String) current
+
+	choice :: Maybe ASCII -> TUI (Maybe Status)
+	choice (Just (Letter Upper Y)) = point # Just status
+	choice (Just (Letter Upper N)) = point # Nothing
+	choice _ = confirm_change_status status
+
 show_title False title = "\n   \ESC[4m" + title + "\ESC[0m"
 show_title True title = "\n + \ESC[1m\ESC[4m" + title + "\ESC[0m"
 
@@ -67,13 +84,13 @@ handle :: Maybe ASCII -> TUI ()
 handle (Just (Letter Lower R)) = point ()
 handle (Just (Letter Lower J)) = adapt # zoom @Model @Tasks @(State _) access (navigation @Right)
 handle (Just (Letter Lower K)) = adapt # zoom @Model @Tasks @(State _) access (navigation @Left)
-handle (Just (Letter Upper D)) = change_status DONE
-handle (Just (Letter Upper T)) = change_status TODO
-handle (Just (Letter Upper G)) = change_status GONE
+handle (Just (Letter Upper D)) = void $ (change_status_in_db <<-) =<< confirm_change_status DONE
+handle (Just (Letter Upper T)) = void $ (change_status_in_db <<-) =<< confirm_change_status TODO
+handle (Just (Letter Upper G)) = void $ (change_status_in_db <<-) =<< confirm_change_status GONE
 handle c = point ()
 
-change_status :: Status -> TUI ()
-change_status new = identity =<< update_task_row <-|- env
+change_status_in_db :: Status -> TUI ()
+change_status_in_db new = identity =<< update_task_row <-|- env
 	<-*- zoom @Model access (current @Int)
 	<-*- zoom @Model access (replace new)
 
