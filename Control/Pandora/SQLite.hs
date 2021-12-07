@@ -35,8 +35,8 @@ instance ToField Status where
 	toField LATE = SQLInteger (-2)
 
 instance FromRow Task where
-	fromRow = (\id status mode title start stop -> id :*: status :*: mode :*: title :*: start :*: stop)
-		<$> field <*> field <*> field <*> field <*> field <*> field
+	fromRow = (\id status mode oid title start stop -> id :*: status :*: mode :*: oid :*: title :*: start :*: stop)
+		<$> field <*> field <*> field <*> field <*> field <*> field <*> field
 
 instance FromRow Event where
 	fromRow = (\title start stop total -> title :*: start :*: stop :*: total)
@@ -47,7 +47,7 @@ update_task_status = "UPDATE tasks SET status = ? WHERE id = ?"
 
 today_tasks :: Query
 today_tasks =
-	"SELECT tasks.id, status, mode, title, \
+	"SELECT tasks.id, status, mode, objective_id, title, \
 	\strftime('%H:%M', start, 'unixepoch', 'localtime'), \
 	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), '') \
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \

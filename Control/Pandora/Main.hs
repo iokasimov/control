@@ -28,7 +28,7 @@ show_event (title :*: start :*: stop :*: total) = "   " + show_event_boundaries 
 	show_event_boundaries start stop total = "{" + start + " - " + stop + " => " + total + "} "
 
 show_task :: Boolean -> Task -> String
-show_task focused (_ :*: status :*: mode :*: title :*: start :*: stop) =
+show_task focused (_ :*: status :*: mode :*: oid :*: title :*: start :*: stop) =
 	focused_mark focused + "[" + show status + "] " + show_task_boundaries mode start stop + title where
 
 	focused_mark True = " * "
@@ -39,8 +39,8 @@ show_task focused (_ :*: status :*: mode :*: title :*: start :*: stop) =
 	show_task_boundaries 1 begin [] = "{" + begin + " - ....."
 	show_task_boundaries 1 begin complete = "{" + begin + " - " + complete + "} "
 
-display :: Events :*: Tasks -> IO ()
-display (events :*: tasks) = void $ do
+display :: Maybe (ID Event) :*: Events :*: Tasks -> IO ()
+display (_ :*: events :*: tasks) = void $ do
 	refresh_terminal
 	putStrLn $ "\n   \ESC[1m\ESC[4m" + "Events for today" + "\ESC[0m\n"
 	putStrLn . show_event <<- events
@@ -72,9 +72,10 @@ show_title True title = "\n + \ESC[1m\ESC[4m" + title + "\ESC[0m"
 refresh :: TUI ()
 refresh = adapt . display =<< current
 
+type Clocked = Maybe (ID Event)
 type Events = List Event
 type Tasks = Tape List Task
-type Model = Events :*: Tasks
+type Model = Clocked :*: Events :*: Tasks
 
 type TUI = Environment Connection :> State Model :> IO
 
@@ -88,6 +89,8 @@ handle (Just (Letter Lower K)) = adapt # zoom @Model @Tasks @(State _) access (n
 handle (Just (Letter Upper D)) = void $ (change_status_in_db <<-) =<< confirm_change_status DONE
 handle (Just (Letter Upper T)) = void $ (change_status_in_db <<-) =<< confirm_change_status TODO
 handle (Just (Letter Upper G)) = void $ (change_status_in_db <<-) =<< confirm_change_status GONE
+handle (Just (Letter Upper I)) = point ()
+handle (Just (Letter Upper O)) = point ()
 handle c = point ()
 
 change_status_in_db :: Status -> TUI ()
@@ -112,4 +115,4 @@ main = do
 	Just tasks <- run . into @(Tape List) . list_to_list empty <-|- query_ @Task connection today_tasks
 	events <- list_to_list empty <-|- query_ @Event connection today_events
 	prepare_terminal
-	eventloop ! connection ! (events :*: tasks)
+	eventloop ! connection ! (Nothing :*: events :*: tasks)
