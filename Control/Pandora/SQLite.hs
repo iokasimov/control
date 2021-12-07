@@ -11,9 +11,16 @@ import "sqlite-simple" Database.SQLite.Simple.FromField (FromField (fromField))
 import "sqlite-simple" Database.SQLite.Simple.ToField (ToField (toField))
 import "sqlite-simple" Database.SQLite.Simple.Internal (Field (Field))
 
+import Control.Pandora.Entity.ID (ID (ID))
 import Control.Pandora.Entity.Event (Event)
 import Control.Pandora.Entity.Task (Task, Status (TODO, DONE, GONE, LATE))
 import Control.SQL.Query (start_of_today, end_of_today, start_of_tomorrow, end_of_tomorrow)
+
+instance FromField (ID e) where
+	fromField (Field (SQLInteger i) _) = pure . ID . fromInteger $ toInteger i
+
+instance ToField (ID e) where
+	toField (ID i) = SQLInteger . fromInteger $ toInteger i
 
 instance FromField Status where
 	fromField (Field (SQLInteger 1) _) = pure TODO

@@ -15,6 +15,7 @@ import "base" Text.Show (show)
 import "base" System.IO (getChar, putStrLn)
 import "sqlite-simple" Database.SQLite.Simple (Connection, Query, open, query_, execute)
 
+import Control.Pandora.Entity.ID (ID (unid))
 import Control.Pandora.Entity.Event (Event)
 import Control.Pandora.Entity.Task (Task, Status (TODO, DONE, GONE))
 import Control.Pandora.SQLite (today_events, today_tasks, update_task_status)
@@ -91,7 +92,7 @@ handle c = point ()
 
 change_status_in_db :: Status -> TUI ()
 change_status_in_db new = identity =<< update_task_row <-|- env
-	<-*- zoom @Model access (current @Int)
+	<-*- zoom @Model access (unid <-|- current @(ID ()))
 	<-*- zoom @Model access (replace new)
 
 update_task_row :: Connection -> Int -> Status -> TUI ()
