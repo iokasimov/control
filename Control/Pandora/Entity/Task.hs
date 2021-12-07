@@ -1,4 +1,4 @@
-module Control.Pandora.Task where
+module Control.Pandora.Entity.Task where
 
 import "pandora" Pandora.Paradigm ((:*:) ((:*:)))
 

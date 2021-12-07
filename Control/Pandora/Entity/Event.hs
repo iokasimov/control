@@ -1,4 +1,4 @@
-module Control.Pandora.Event where
+module Control.Pandora.Entity.Event where
 
 import "pandora" Pandora.Paradigm ((:*:) ((:*:)))
 
