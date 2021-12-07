@@ -11,6 +11,7 @@ import "sqlite-simple" Database.SQLite.Simple.FromField (FromField (fromField))
 import "sqlite-simple" Database.SQLite.Simple.ToField (ToField (toField))
 import "sqlite-simple" Database.SQLite.Simple.Internal (Field (Field))
 
+import Control.Pandora.Event (Event)
 import Control.Pandora.Task (Task, Status (TODO, DONE, GONE, LATE))
 import Control.SQL.Query (start_of_today, end_of_today, start_of_tomorrow, end_of_tomorrow)
 
@@ -30,6 +31,10 @@ instance FromRow Task where
 	fromRow = (\id status mode title start stop -> id :*: status :*: mode :*: title :*: start :*: stop)
 		<$> field <*> field <*> field <*> field <*> field <*> field
 
+instance FromRow Event where
+	fromRow = (\title start stop total -> title :*: start :*: stop :*: total)
+		<$> field <*> field <*> field <*> field
+
 update_task_status :: Query
 update_task_status = "UPDATE tasks SET status = ? WHERE id = ?"
 
@@ -41,6 +46,17 @@ today_tasks =
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
 	\WHERE start >= " <> start_of_today <> " AND IFNULL(stop <= " <> end_of_today <> ", 1) \
 	\ORDER BY status, mode, start;"
+
+today_events :: Query
+today_events =
+	"SELECT title, \
+	\strftime('%H:%M', start, 'unixepoch', 'localtime'), \
+	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), ''), \
+	\strftime('%H:%M', IFNULL(stop, strftime('%s', datetime('now'))) - start, 'unixepoch') \
+	\FROM events JOIN objectives on events.objective_id = objectives.id \
+	\WHERE events.start >= (strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) \
+	\AND IFNULL(events.stop <= (strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) + 86399, 1) \
+	\ORDER BY events.start;"
 
 tomorrow_tasks :: Query
 tomorrow_tasks =

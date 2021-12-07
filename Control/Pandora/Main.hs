@@ -15,10 +15,16 @@ import "base" Text.Show (show)
 import "base" System.IO (getChar, putStrLn)
 import "sqlite-simple" Database.SQLite.Simple (Connection, Query, open, query_, execute)
 
+import Control.Pandora.Event (Event)
 import Control.Pandora.Task (Task, Status (TODO, DONE, GONE))
-import Control.Pandora.SQLite (today_tasks, update_task_status)
+import Control.Pandora.SQLite (today_events, today_tasks, update_task_status)
 import Control.Pandora.TUI (prepare_terminal, refresh_terminal)
 import Control.Pandora.Utils (castASCII, list_to_list)
+
+show_event :: Event -> String
+show_event (title :*: start :*: stop :*: total) = show_event_boundaries start stop total + title where
+
+	show_event_boundaries start stop total = "{" + start + " - " + stop + " -> " + total + "} "
 
 show_task :: Boolean -> Task -> String
 show_task focused (_ :*: status :*: mode :*: title :*: start :*: stop) =
@@ -79,7 +85,7 @@ eventloop = forever_ $ handle =<< keystroke -*- refresh
 
 main = do
 	connection <- open "facts.db"
-	today <- query_ @Task connection today_tasks
-	let Just tasks = run . into @(Tape List) # list_to_list empty today
+	Just tasks <- run . into @(Tape List) . list_to_list empty <-|- query_ @Task connection today_tasks
+	events <- list_to_list empty <-|- query_ @Event connection today_events
 	prepare_terminal
 	eventloop ! connection ! tasks
