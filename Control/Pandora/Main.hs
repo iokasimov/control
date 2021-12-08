@@ -59,7 +59,7 @@ confirm_change_status status = choice =<< keystroke
 		+ task + "\" as [\ESC[7m" + show status + "\ESC[27m]? (Yes/No)\ESC[24m\n"
 
 	title :: State Model String
-	title = zoom @Model (access @String) current
+	title = extract <-|- zoom @Model (access @String) current
 
 	choice :: Maybe ASCII -> TUI (Maybe Status)
 	choice (Just (Letter Upper Y)) = point # Just status
@@ -95,14 +95,14 @@ handle c = point ()
 
 change_status_in_db :: Status -> TUI ()
 change_status_in_db new = identity =<< update_task_row <-|- env
-	<-*- zoom @Model access (unid <-|- current @(ID ()))
-	<-*- zoom @Model access (replace new)
+	<-*- zoom @Model (access @(ID ())) (unid . extract <-|- current)
+	<-*- zoom @Model (access @Status) (extract <-|- replace (Identity new))
 
 update_task_row :: Connection -> Int -> Status -> TUI ()
 update_task_row connection id status = adapt $ execute connection update_task_status (status, id)
 
-navigation :: forall direction . (Morphed (Rotate direction) (Tape List) (Maybe <:.> Tape List)) => State (Tape List Task) ()
-navigation = void . modify $ \z -> resolve @(Tape List Task) identity z # run (rotate @direction z)
+navigation :: forall direction . (Morphed (Rotate direction) (Tape List) (Maybe <:.> Tape List)) => State (Identity (Tape List Task)) ()
+navigation = void . modify $ \(Identity z) -> Identity $ resolve @(Tape List Task) identity z # run (rotate @direction z)
 
 keystroke :: TUI (Maybe ASCII)
 keystroke = castASCII <-|- adapt getChar
