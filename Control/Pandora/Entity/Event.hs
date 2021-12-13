@@ -2,7 +2,8 @@ module Control.Pandora.Entity.Event where
 
 import "pandora" Pandora.Paradigm ((:*:) ((:*:)))
 
-import "base" Data.Int (Int)
-import "base" Data.String (String)
-
 type Event = String :*: String :*: String :*: String
+
+instance Show Event where
+	show (title :*: start :*: stop :*: total) =
+		"{" <> start <> " - " <> stop <> " => " <> total <> "} " <> title

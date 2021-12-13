@@ -22,33 +22,6 @@ import Control.Pandora.SQLite (today_events, today_tasks, update_task_status)
 import Control.Pandora.TUI (prepare_terminal, refresh_terminal)
 import Control.Pandora.Utils (castASCII, list_to_list)
 
-show_event :: Event -> String
-show_event (title :*: start :*: stop :*: total) =
-	"   " +  "{" + start + " - " + stop + " => " + total + "} " + title
-
-show_task :: Boolean -> Task -> String
-show_task focused (_ :*: status :*: mode :*: oid :*: title :*: start :*: stop) =
-	focused_mark focused + "[" + show status + "] " + show_task_boundaries mode start stop + title where
-
-	focused_mark True = " * "
-	focused_mark False = "   "
-
-	show_task_boundaries 0 start [] = "{" + start + " - ....."
-	show_task_boundaries 0 start stop = "{" + start + " - " + stop + "} "
-
-display :: Maybe (ID Event) :*: Events :*: Maybe Tasks -> IO ()
-display (_ :*: events :*: Just tasks) = void $ do
-	refresh_terminal
-	putStrLn $ "\n   \ESC[1m\ESC[4m" + "Events for today" + "\ESC[0m\n"
-	putStrLn . show_event <<- events
-	putStrLn $ "\n   \ESC[1m\ESC[4m" + "Tasks for today" + "\ESC[0m\n"
-	putStrLn . show_task False -<<-<<- (Reverse <-|- view (sub @Left) tasks)
-	putStrLn . show_task True -<<-<<- view (sub @Root) tasks
-	putStrLn . show_task False -<<-<<- view (sub @Right) tasks
-
-refresh :: TUI ()
-refresh = adapt . display =<< current
-
 type Clocked = Maybe (ID Event)
 type Events = List Event
 type Tasks = Tape List Task
@@ -56,8 +29,25 @@ type Model = Clocked :*: Events :*: Maybe Tasks
 
 type TUI = Environment Connection :> State Model :> Maybe :> IO
 
+display :: Model -> IO ()
+display (_ :*: events :*: Just tasks) = void $ do
+	refresh_terminal
+	putStrLn $ "\n   \ESC[1m\ESC[4m" + "Events for today" + "\ESC[0m\n"
+	putStrLn . ("   " +) . show <<- events
+	putStrLn $ "\n   \ESC[1m\ESC[4m" + "Tasks for today" + "\ESC[0m\n"
+	putStrLn . (focused_mark False +) . show -<<-<<- (Reverse <-|- view (sub @Left) tasks)
+	putStrLn . (focused_mark False +) . show -<<-<<- view (sub @Root) tasks
+	putStrLn . (focused_mark False +) . show -<<-<<- view (sub @Right) tasks
+
+focused_mark True = " * "
+focused_mark False = "   "
+
+refresh :: TUI ()
+refresh = adapt . display =<< current
+
 cursor :: (Stateful Model t, Optional t, Monad (->) t) => State Task r -> t r
-cursor x = point . extract =<< adapt =<< zoom @Model # perhaps @Tasks # overlook (zoom @Tasks # access @Task . sub @Root # overlook x)
+cursor x = point . extract =<< adapt =<< zoom @Model # perhaps @Tasks
+	# overlook (zoom @Tasks # access @Task . sub @Root # overlook x)
 
 handle :: ASCII -> TUI ()
 handle (Letter Lower R) = point ()
