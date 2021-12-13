@@ -1,6 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 module Main where
 
@@ -34,10 +33,8 @@ show_task focused (_ :*: status :*: mode :*: oid :*: title :*: start :*: stop) =
 	focused_mark True = " * "
 	focused_mark False = "   "
 
-	show_task_boundaries 0 ready [] = "{" + ready + " - ....."
-	show_task_boundaries 0 ready deadline = "{" + ready + " - " + deadline + "} "
-	show_task_boundaries 1 begin [] = "{" + begin + " - ....."
-	show_task_boundaries 1 begin complete = "{" + begin + " - " + complete + "} "
+	show_task_boundaries 0 start [] = "{" + start + " - ....."
+	show_task_boundaries 0 start stop = "{" + start + " - " + stop + "} "
 
 display :: Maybe (ID Event) :*: Events :*: Maybe Tasks -> IO ()
 display (_ :*: events :*: Just tasks) = void $ do
@@ -49,9 +46,6 @@ display (_ :*: events :*: Just tasks) = void $ do
 	putStrLn . show_task True -<<-<<- view (sub @Root) tasks
 	putStrLn . show_task False -<<-<<- view (sub @Right) tasks
 
-show_title False title = "\n   \ESC[4m" + title + "\ESC[0m"
-show_title True title = "\n + \ESC[1m\ESC[4m" + title + "\ESC[0m"
-
 refresh :: TUI ()
 refresh = adapt . display =<< current
 
@@ -62,28 +56,37 @@ type Model = Clocked :*: Events :*: Maybe Tasks
 
 type TUI = Environment Connection :> State Model :> Maybe :> IO
 
-cursor :: State Task r -> Environment Connection :> State Model :> Maybe :> IO := r
+cursor :: (Stateful Model t, Optional t, Monad (->) t) => State Task r -> t r
 cursor x = point . extract =<< adapt =<< zoom @Model # perhaps @Tasks # overlook (zoom @Tasks # access @Task . sub @Root # overlook x)
 
 handle :: ASCII -> TUI ()
 handle (Letter Lower R) = point ()
 handle (Letter Lower J) = adapt # navigate @Right
 handle (Letter Lower K) = adapt # navigate @Left
-handle (Letter Upper G) = void $ change_status_in_db GONE -*- confirmation GONE
+handle (Letter Upper G) = change_status_in_db GONE -*- confirmation GONE
+handle (Letter Upper T) = change_status_in_db TODO -*- confirmation TODO
+handle (Letter Upper G) = change_status_in_db DONE -*- confirmation DONE
 handle c = point ()
 
 confirmation :: Status -> TUI ()
-confirmation new = (choice =<< adapt keystroke) -*- (adapt . message =<< title) where
-	
-	choice :: ASCII -> TUI ()
-	choice (Letter Upper N) = nothing
-	choice (Letter Upper Y) = point ()
+confirmation new = adapt choice -*- adapt dialog where
 
-	title :: TUI String
+	choice :: Maybe :> IO := ()
+	choice = recognize =<< keystroke
+
+	recognize :: ASCII -> Maybe :> IO := ()
+	recognize (Letter Upper N) = nothing
+	recognize (Letter Upper Y) = point ()
+	recognize _ = choice
+
+	dialog :: State Model :> Maybe :> IO := ()
+	dialog = message =<< title
+
+	title :: State Model :> Maybe :> IO := String
 	title = cursor (zoom @Task # access @String # extract <-|- overlook current)
 
-	message :: String -> IO ()
-	message task = putStrLn
+	message :: String -> State Model :> Maybe :> IO := ()
+	message task = adapt . putStrLn
 		$ "\n   \ESC[4m" + "Are you sure you want to mark \"" + task
 			+ "\" as [\ESC[7m" + show new + "\ESC[27m]? (Yes/No)\ESC[24m\n"
 
