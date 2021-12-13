@@ -159,7 +159,7 @@ overdue :: Query
 overdue =
 	"SELECT tasks.id, -2, mode, title, strftime('%d.%m %H:%M', start, 'unixepoch', 'localtime'), strftime('%d.%m %H:%M', stop, 'unixepoch', 'localtime') \
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
-	\WHERE status = 1 and stop < strftime('%s', 'now') \
+	\WHERE status = 1 and IFNULL(stop < strftime('%s', 'now'), 0) \
 	\ORDER BY start;"
 
 load_all_tasks connection = (\od tds tdf tms tmf month_s month_f sd -> od : tds : tdf : tms : tmf : month_s : month_f : sd : [])
