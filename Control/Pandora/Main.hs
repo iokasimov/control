@@ -32,9 +32,9 @@ type TUI = Environment Connection :> State Facts :> Maybe :> IO
 display :: Facts -> IO ()
 display (_ :*: events :*: Just tasks) = void $ do
 	refresh_terminal
-	putStrLn $ heading . line . underlined $ "Events for today"
+	putStrLn . heading . line . underlined $ "Events for today"
 	putStrLn . line . show <<- events
-	putStrLn $ heading . line . underlined $ "Tasks for today"
+	putStrLn . heading . line . underlined $ "Tasks for today"
 	putStrLn . record . show -<<-<<- (Reverse <-|- view (sub @Left) tasks)
 	putStrLn . focused . show -<<-<<- view (sub @Root) tasks
 	putStrLn . record . show -<<-<<- view (sub @Right) tasks
@@ -50,9 +50,9 @@ handle :: ASCII -> TUI ()
 handle (Letter Lower R) = void $ replace =<< adapt . load_facts =<< env
 handle (Letter Lower J) = adapt # navigate @Right
 handle (Letter Lower K) = adapt # navigate @Left
-handle (Letter Upper G) = pass -+- change_status_in_db GONE -*- confirmation GONE
-handle (Letter Upper T) = pass -+- change_status_in_db TODO -*- confirmation TODO
-handle (Letter Upper D) = pass -+- change_status_in_db DONE -*- confirmation DONE
+handle (Letter Upper G) = pass -+- (change_status_in_db -*-*- confirmation) GONE
+handle (Letter Upper T) = pass -+- (change_status_in_db -*-*- confirmation) TODO
+handle (Letter Upper D) = pass -+- (change_status_in_db -*-*- confirmation) DONE
 handle c = point ()
 
 confirmation :: Status -> TUI ()
@@ -118,7 +118,6 @@ load_facts connection = (\es ts -> Nothing :*: es :*: ts) <-|- load_today_events
 
 main = do
 	connection <- open "facts.db"
-	tasks <- run . into @(Tape List) . list_to_list (TU Nothing) <-|- query_ @Task connection today_tasks
-	events <- list_to_list (TU Nothing) <-|- query_ @Event connection today_events
 	prepare_terminal
-	run $ eventloop ! connection ! (Nothing :*: events :*: tasks)
+	facts <- load_facts connection
+	run $ eventloop ! connection ! facts
