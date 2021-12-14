@@ -50,9 +50,9 @@ handle :: ASCII -> TUI ()
 handle (Letter Lower R) = void $ replace =<< adapt . load_facts =<< env
 handle (Letter Lower J) = adapt # navigate @Right
 handle (Letter Lower K) = adapt # navigate @Left
-handle (Letter Upper G) = change_status_in_db GONE -*- confirmation GONE
-handle (Letter Upper T) = change_status_in_db TODO -*- confirmation TODO
-handle (Letter Upper D) = change_status_in_db DONE -*- confirmation DONE
+handle (Letter Upper G) = pass -+- change_status_in_db GONE -*- confirmation GONE
+handle (Letter Upper T) = pass -+- change_status_in_db TODO -*- confirmation TODO
+handle (Letter Upper D) = pass -+- change_status_in_db DONE -*- confirmation DONE
 handle c = point ()
 
 confirmation :: Status -> TUI ()
