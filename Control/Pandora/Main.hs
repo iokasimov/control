@@ -19,7 +19,7 @@ import Control.Pandora.Entity.ID (ID (unid))
 import Control.Pandora.Entity.Event (Event)
 import Control.Pandora.Entity.Task (Task, Status (TODO, DONE, GONE))
 import Control.Pandora.SQLite (today_events, today_tasks, update_task_status)
-import Control.Pandora.TUI (prepare_terminal, refresh_terminal)
+import Control.Pandora.TUI (prepare_terminal, refresh_terminal, line, focused, record, bold, negative, underlined, heading)
 import Control.Pandora.Utils (castASCII, list_to_list)
 
 type Clocked = Maybe (ID Event)
@@ -32,15 +32,12 @@ type TUI = Environment Connection :> State Facts :> Maybe :> IO
 display :: Facts -> IO ()
 display (_ :*: events :*: Just tasks) = void $ do
 	refresh_terminal
-	putStrLn $ "\n   \ESC[1m\ESC[4m" + "Events for today" + "\ESC[0m\n"
-	putStrLn . ("   " +) . show <<- events
-	putStrLn $ "\n   \ESC[1m\ESC[4m" + "Tasks for today" + "\ESC[0m\n"
-	putStrLn . (focused_mark False +) . show -<<-<<- (Reverse <-|- view (sub @Left) tasks)
-	putStrLn . (focused_mark True +) . show -<<-<<- view (sub @Root) tasks
-	putStrLn . (focused_mark False +) . show -<<-<<- view (sub @Right) tasks
-
-focused_mark True = " * "
-focused_mark False = "   "
+	putStrLn $ heading . line . underlined $ "Events for today"
+	putStrLn . line . show <<- events
+	putStrLn $ heading . line . underlined $ "Tasks for today"
+	putStrLn . record . show -<<-<<- (Reverse <-|- view (sub @Left) tasks)
+	putStrLn . focused . show -<<-<<- view (sub @Root) tasks
+	putStrLn . record . show -<<-<<- view (sub @Right) tasks
 
 refresh :: TUI ()
 refresh = adapt . display =<< current
@@ -73,12 +70,11 @@ confirmation new = adapt choice -*- adapt dialog where
 	dialog = message =<< title
 
 	title :: State Facts :> Maybe :> IO := String
-	title = cursor (zoom @Task # access @String # extract <-|- overlook current)
+	title = cursor $ zoom @Task # access @String # extract <-|- overlook current
 
 	message :: String -> State Facts :> Maybe :> IO := ()
-	message task = adapt . putStrLn
-		$ "\n   \ESC[4m" + "Are you sure you want to mark \"" + task
-			+ "\" as [\ESC[7m" + show new + "\ESC[27m]? (Yes/No)\ESC[24m\n"
+	message task = adapt . putStrLn . heading . line . underlined
+		$ "Are you sure you want to mark this task as [" + show new + "]? (Yes/No)"
 
 change_status_in_state :: Status -> TUI Status
 change_status_in_state new = cursor $ zoom @Task # access @Status # extract <-|- overlook (replace @Status new)
@@ -93,7 +89,7 @@ change_status_in_db new = identity =<< update_task_row <-|- env
 update_task_row :: Connection -> Int -> Status -> TUI ()
 update_task_row connection id status = adapt $ execute connection update_task_status (status, id)
 
-navigate :: forall direction . Morphed (Rotate direction) (Tape List) (Maybe <:.> Tape List) => State Facts ()
+navigate :: forall direction . Morphed # Rotate direction # Tape List # Maybe <:.> Tape List => State Facts ()
 navigate = void $ zoom @Facts # access @(Maybe Tasks) $ overlook . overlook $ modify move where
 
 	move :: Tape List Task -> Tape List Task
@@ -117,7 +113,7 @@ load_facts connection = (\es ts -> Nothing :*: es :*: ts) <-|- load_today_events
 	from_db :: FromRow row => Query -> IO [row]
 	from_db = query_ connection
 
-	to_list = list_to_list (TU Nothing)
+	to_list = list_to_list # TU Nothing
 	to_zipper = run . into @(Tape List)
 
 main = do
