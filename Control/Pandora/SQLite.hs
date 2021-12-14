@@ -86,3 +86,12 @@ overdue =
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
 	\WHERE status = 1 and IFNULL(stop < strftime('%s', 'now'), 0) \
 	\ORDER BY start;"
+
+start_objective_event :: Query
+start_objective_event = 
+	"INSERT INTO events (objective_id, start) VALUES (?, strftime('%s', 'now'))"
+
+stop_objective_event :: Query
+stop_objective_event =
+	"UPDATE events SET stop = strftime('%s', datetime('now')) \
+	\WHERE objective_id = ? AND stop IS NULL"
