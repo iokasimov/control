@@ -1,5 +1,4 @@
 {-# LANGUAGE NoImplicitPrelude #-}
-
 module Control.Pandora.Utils where
 
 import "pandora" Pandora.Core
@@ -10,6 +9,7 @@ import "pandora-io" Pandora.IO
 import "base" Data.Char (Char, ord)
 import "base" Data.List ((++))
 import "base" Data.String (String)
+import "base" System.IO (getChar)
 
 instance Semigroup String where
 	(+) = (++)
@@ -17,6 +17,15 @@ instance Semigroup String where
 list_to_list :: List a -> [a] -> List a
 list_to_list ys (x : xs) = list_to_list # item @Push x ys # xs
 list_to_list ys [] = ys
+
+to_list :: [a] -> List a
+to_list = list_to_list # TU Nothing
+
+to_zipper :: List a -> Maybe :. Tape List := a
+to_zipper = run . into @(Tape List)
+
+keystroke :: Maybe :> IO := ASCII
+keystroke = unite # castASCII <-|- getChar
 
 castASCII :: Char -> Maybe ASCII
 castASCII c = case ord c of

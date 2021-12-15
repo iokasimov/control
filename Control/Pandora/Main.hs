@@ -12,7 +12,7 @@ import "base" Data.Char (Char)
 import "base" Data.Int (Int)
 import "base" Data.String (String)
 import "base" Text.Show (show)
-import "base" System.IO (getChar, putStrLn)
+import "base" System.IO (putStrLn)
 import "sqlite-simple" Database.SQLite.Simple (Connection, FromRow, Query, Only (Only), open, query_, execute)
 
 import Control.Pandora.Entity.ID (ID (unid))
@@ -21,17 +21,16 @@ import Control.Pandora.Entity.Event (Event)
 import Control.Pandora.Entity.Task (Task, Status (TODO, DONE, GONE))
 import Control.Pandora.SQLite (today_events, today_tasks, update_task_status, start_objective_event, stop_objective_event)
 import Control.Pandora.TUI (prepare_terminal, refresh_terminal, line, focused, record, bold, negative, underlined, heading)
-import Control.Pandora.Utils (castASCII, list_to_list)
+import Control.Pandora.Utils (keystroke, to_list, to_zipper)
 
-type Clocked = Maybe (ID Event)
 type Events = List Event
 type Tasks = Tape List Task
-type Facts = Clocked :*: Events :*: Maybe Tasks
+type Facts = Events :*: Maybe Tasks
 
 type TUI = Environment Connection :> State Facts :> Maybe :> IO
 
 display :: Facts -> IO ()
-display (_ :*: events :*: Just tasks) = void $ do
+display (events :*: Just tasks) = void $ do
 	refresh_terminal
 	putStrLn . heading . line . underlined $ "Events for today"
 	putStrLn . line . show <<- events
@@ -111,14 +110,11 @@ navigate = void $ zoom @Facts # access @(Maybe Tasks) $ overlook . overlook $ mo
 	move :: Tape List Task -> Tape List Task
 	move z = resolve @(Tape List Task) identity z # run (rotate @direction z)
 
-keystroke :: Maybe :> IO := ASCII
-keystroke = unite # castASCII <-|- getChar
-
 eventloop :: TUI ()
 eventloop = forever_ $ handle =<< adapt keystroke -*- refresh
 
 load_facts :: Connection -> IO Facts
-load_facts connection = (\es ts -> Nothing :*: es :*: ts) <-|- load_today_events <-*- load_today_tasks where
+load_facts connection = (:*:) <-|- load_today_events <-*- load_today_tasks where
 
 	load_today_events :: IO Events
 	load_today_events = to_list <-|- from_db today_events
@@ -128,9 +124,6 @@ load_facts connection = (\es ts -> Nothing :*: es :*: ts) <-|- load_today_events
 
 	from_db :: FromRow row => Query -> IO [row]
 	from_db = query_ connection
-
-	to_list = list_to_list # TU Nothing
-	to_zipper = run . into @(Tape List)
 
 main = do
 	connection <- open "facts.db"
