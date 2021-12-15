@@ -49,7 +49,7 @@ today_tasks :: Query
 today_tasks =
 	"SELECT tasks.id, status, mode, objective_id, title, \
 	\strftime('%H:%M', start, 'unixepoch', 'localtime'), \
-	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), '') \
+	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), '.....') \
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
 	\WHERE start >= " <> start_of_today <> " AND IFNULL(stop <= " <> end_of_today <> ", 1) \
 	\ORDER BY status, mode, start;"
@@ -57,9 +57,9 @@ today_tasks =
 today_events :: Query
 today_events =
 	"SELECT title, \
-	\strftime('%H:%M', start, 'unixepoch', 'localtime'), \
-	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), ''), \
-	\strftime('%H:%M', IFNULL(stop, strftime('%s', datetime('now'))) - start, 'unixepoch') \
+	\IFNULL(strftime('%H:%M', start, 'unixepoch', 'localtime'), '.....'), \
+	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), '.....'), \
+	\IFNULL(strftime('%H:%M', IFNULL(stop, strftime('%s', datetime('now'))) - start, 'unixepoch'), '.....') \
 	\FROM events JOIN objectives on events.objective_id = objectives.id \
 	\WHERE events.start >= (strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) \
 	\AND IFNULL(events.stop <= (strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) + 86399, 1) \
@@ -69,14 +69,14 @@ tomorrow_tasks :: Query
 tomorrow_tasks =
 	"SELECT tasks.id, status, mode, title, \
 	\strftime('%H:%M', start, 'unixepoch', 'localtime'), \
-	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), '') \
+	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), '.....') \
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
 	\WHERE start >= " <> start_of_tomorrow <> " AND IFNULL(stop <= " <> end_of_tomorrow <> ", 1) \
 	\ORDER BY status, mode, start;"
 
 someday_todo :: Query
 someday_todo =
-	"SELECT tasks.id, 1, mode, title, strftime('%d.%m', start, 'unixepoch', 'localtime'), '' \
+	"SELECT tasks.id, 1, mode, title, strftime('%d.%m', start, 'unixepoch', 'localtime'), '.....' \
 	\FROM tasks JOIN objectives on tasks.objective_id = objectives.id \
 	\WHERE stop IS NULL AND status = 1 AND mode = 0;"
 
