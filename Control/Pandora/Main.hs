@@ -39,12 +39,8 @@ display (events :*: Just tasks) = void $ do
 	putStrLn . focused . show -<<-<<- view (sub @Root) tasks
 	putStrLn . record . show -<<-<<- view (sub @Right) tasks
 
-refresh :: TUI ()
-refresh = adapt . display =<< current
-
 cursor :: (Stateful Facts t, Optional t, Monad (->) t) => State Task r -> t r
-cursor x = point . extract =<< adapt =<< zoom @Facts # perhaps @Tasks
-	# overlook (zoom @Tasks # access @Task . sub @Root # overlook x)
+cursor x = extract <-|- (adapt =<< zoom @Facts # perhaps @Tasks # overlook (zoom @Tasks # access @Task . sub @Root # overlook x))
 
 handle :: ASCII -> TUI ()
 handle (Letter Lower R) = void $ replace =<< adapt . load_facts =<< env
@@ -53,9 +49,18 @@ handle (Letter Lower K) = adapt # navigate @Left
 handle (Letter Upper G) = pass -+- (change_status_in_db -*-*- confirmation) GONE
 handle (Letter Upper T) = pass -+- (change_status_in_db -*-*- confirmation) TODO
 handle (Letter Upper D) = pass -+- (change_status_in_db -*-*- confirmation) DONE
-handle (Letter Upper I) = clock_task_in
-handle (Letter Upper O) = clock_task_out
+handle (Letter Upper I) = identity =<< insert_new_event <-|- env <-*- focused_obj_id
+handle (Letter Upper O) = identity =<< finish_event <-|- env <-*- focused_obj_id
 handle c = point ()
+
+focused_obj_id :: TUI := ID Objective
+focused_obj_id = cursor $ zoom @Task # access @(ID Objective) # extract <-|- overlook current
+
+insert_new_event :: Connection -> ID Objective -> TUI ()
+insert_new_event connection obj_id = adapt $ execute connection start_objective_event $ Only obj_id
+
+finish_event :: Connection -> ID Objective -> TUI ()
+finish_event connection obj_id = adapt $ execute connection stop_objective_event $ Only obj_id
 
 confirmation :: Status -> TUI ()
 confirmation new = adapt choice -*- adapt dialog where
@@ -88,22 +93,6 @@ change_status_in_db new = identity =<< update_task_row <-|- env
 	update_task_row :: Connection -> Int -> Status -> TUI ()
 	update_task_row connection id status = adapt $ execute connection update_task_status (status, id)
 
-clock_task_in = identity =<< insert_new_event <-|- env <-*- focused_obj_id where
-
-	focused_obj_id :: TUI := ID Objective
-	focused_obj_id = cursor $ zoom @Task # access @(ID Objective) # extract <-|- overlook current
-
-	insert_new_event :: Connection -> ID Objective -> TUI ()
-	insert_new_event connection obj_id = adapt $ execute connection start_objective_event $ Only obj_id
-
-clock_task_out = identity =<< finish_event <-|- env <-*- focused_obj_id where
-
-	focused_obj_id :: TUI := ID Objective
-	focused_obj_id = cursor $ zoom @Task # access @(ID Objective) # extract <-|- overlook current
-
-	finish_event :: Connection -> ID Objective -> TUI ()
-	finish_event connection obj_id = adapt $ execute connection stop_objective_event $ Only obj_id
-
 navigate :: forall direction . Morphed # Rotate direction # Tape List # Maybe <:.> Tape List => State Facts ()
 navigate = void $ zoom @Facts # access @(Maybe Tasks) $ overlook . overlook $ modify move where
 
@@ -111,7 +100,7 @@ navigate = void $ zoom @Facts # access @(Maybe Tasks) $ overlook . overlook $ mo
 	move z = resolve @(Tape List Task) identity z # run (rotate @direction z)
 
 eventloop :: TUI ()
-eventloop = forever_ $ handle =<< adapt keystroke -*- refresh
+eventloop = forever_ $ handle =<< adapt keystroke -*- (adapt . display =<< current)
 
 load_facts :: Connection -> IO Facts
 load_facts connection = (:*:) <-|- load_today_events <-*- load_today_tasks where
