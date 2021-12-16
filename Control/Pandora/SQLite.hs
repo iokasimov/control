@@ -64,7 +64,7 @@ today_events =
 	\FROM events JOIN objectives on events.objective_id = objectives.id \
 	\WHERE events.start >= (strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) \
 	\AND IFNULL(events.stop <= (strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) + 86399, 1) \
-	\ORDER BY events.start;"
+	\ORDER BY events.start DESC;"
 
 tomorrow_tasks :: Query
 tomorrow_tasks =
