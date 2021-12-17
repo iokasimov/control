@@ -60,8 +60,8 @@ today_tasks =
 	\WHERE start >= " <> start_of_today <> " AND IFNULL(stop <= " <> end_of_today <> ", 1) \
 	\ORDER BY status, mode, start;"
 
-today_events :: Query
-today_events =
+today_timeline :: Query
+today_timeline =
 	"SELECT title, \
 	\IFNULL(strftime('%H:%M', start, 'unixepoch', 'localtime'), '.....'), \
 	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), '.....'), \
@@ -71,8 +71,8 @@ today_events =
 	\AND IFNULL(events.stop <= (strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) + 86399, 1) \
 	\ORDER BY events.start DESC;"
 
-today_time_spent :: Query
-today_time_spent =
+today_timesheet :: Query
+today_timesheet =
 	"SELECT objectives.title, \
 	\strftime('%H:%M', SUM(IFNULL(stop, strftime('%s', 'now')) - start), 'unixepoch'), \
 	\CAST (ROUND (100.0 * SUM(IFNULL(stop, strftime('%s', 'now')) - start) / (SELECT SUM(IFNULL(stop, strftime('%s', 'now')) - start) FROM objectives LEFT JOIN events ON objectives.id = events.objective_id WHERE start >= (strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) AND IFNULL(stop <= (strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) + 86399, 1)), 0) as INT) \

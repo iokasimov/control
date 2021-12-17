@@ -20,22 +20,22 @@ import Control.Pandora.Entity.Objective (Objective)
 import Control.Pandora.Entity.Amount (Amount)
 import Control.Pandora.Entity.Event (Event)
 import Control.Pandora.Entity.Task (Task, Status (TODO, DONE, GONE))
-import Control.Pandora.SQLite (today_events, today_tasks, today_time_spent, update_task_status, start_objective_event, stop_objective_event)
+import Control.Pandora.SQLite (today_timeline, today_tasks, today_timesheet, update_task_status, start_objective_event, stop_objective_event)
 import Control.Pandora.TUI (prepare_terminal, refresh_terminal, line, focused, record, bold, negative, underlined, heading)
 import Control.Pandora.Utils (keystroke, to_list, to_zipper)
 
-type Events = List Event
+type Timeline = List Event
 type Timesheet = List Amount
 type Tasks = Tape List Task
-type Facts = Events :*: Timesheet :*: Maybe Tasks
+type Facts = Timeline :*: Timesheet :*: Maybe Tasks
 
 type TUI = Environment Connection :> State Facts :> Maybe :> IO
 
 display :: Facts -> IO ()
-display (events :*: timesheet :*: Just tasks) = void $ do
+display (timeline :*: timesheet :*: Just tasks) = void $ do
 	refresh_terminal
-	putStrLn . heading . line . underlined $ "Events for today"
-	putStrLn . line . show <<- events
+	putStrLn . heading . line . underlined $ "Timeline for today"
+	putStrLn . line . show <<- timeline
 	putStrLn . heading . line . underlined $ "Timesheet for today"
 	putStrLn . line . show <<- timesheet
 	putStrLn . heading . line . underlined $ "Tasks for today"
@@ -108,16 +108,16 @@ eventloop = forever_ $ handle =<< adapt keystroke -*- (adapt . display =<< curre
 
 load_facts :: Connection -> IO Facts
 load_facts connection = (\events timeshet tasks -> events :*: timeshet :*: tasks)
-	<-|- load_today_events <-*- load_today_time_spent <-*- load_today_tasks where
+	<-|- load_today_events <-*- load_today_timesheet <-*- load_today_tasks where
 
-	load_today_events :: IO Events
-	load_today_events = to_list <-|- from_db today_events
+	load_today_events :: IO Timeline
+	load_today_events = to_list <-|- from_db today_timeline
 
 	load_today_tasks :: IO (Maybe Tasks)
 	load_today_tasks = to_zipper . to_list <-|- from_db today_tasks
 
-	load_today_time_spent :: IO Timesheet
-	load_today_time_spent = to_list <-|- from_db today_time_spent
+	load_today_timesheet :: IO Timesheet
+	load_today_timesheet = to_list <-|- from_db today_timesheet
 
 	from_db :: FromRow row => Query -> IO [row]
 	from_db = query_ connection
