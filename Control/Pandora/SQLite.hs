@@ -66,6 +66,16 @@ today_events =
 	\AND IFNULL(events.stop <= (strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) + 86399, 1) \
 	\ORDER BY events.start DESC;"
 
+today_time_spent :: Query
+today_time_spent =
+	"SELECT objectives.title, \
+	\strftime('%H:%M', SUM(IFNULL(stop, strftime('%s', 'now')) - start), 'unixepoch'), \
+	\CAST (ROUND (100.0 * SUM(IFNULL(stop, strftime('%s', 'now')) - start) / (SELECT SUM(IFNULL(stop, strftime('%s', 'now')) - start) FROM objectives LEFT JOIN events ON objectives.id = events.objective_id WHERE start >= (strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) AND IFNULL(stop <= (strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) + 86399, 1)), 0) as INT) \
+	\FROM objectives LEFT JOIN events ON objectives.id = events.objective_id \
+	\WHERE start >= (strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) AND IFNULL(stop <= (strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) + 86399, 1) \
+	\GROUP BY objectives.id \
+	\ORDER BY SUM(IFNULL(stop, strftime('%s', 'now')) - start) DESC;"
+
 tomorrow_tasks :: Query
 tomorrow_tasks =
 	"SELECT tasks.id, status, mode, title, \
