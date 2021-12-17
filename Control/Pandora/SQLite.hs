@@ -12,6 +12,7 @@ import "sqlite-simple" Database.SQLite.Simple.ToField (ToField (toField))
 import "sqlite-simple" Database.SQLite.Simple.Internal (Field (Field))
 
 import Control.Pandora.Entity.ID (ID (ID))
+import Control.Pandora.Entity.Amount (Amount)
 import Control.Pandora.Entity.Event (Event)
 import Control.Pandora.Entity.Task (Task, Status (TODO, DONE, GONE, LATE))
 import Control.SQL.Query (start_of_today, end_of_today, start_of_tomorrow, end_of_tomorrow)
@@ -41,6 +42,10 @@ instance FromRow Task where
 instance FromRow Event where
 	fromRow = (\title start stop total -> title :*: start :*: stop :*: total)
 		<$> field <*> field <*> field <*> field
+
+instance FromRow Amount where
+	fromRow = (\title hours percentage -> title :*: hours :*: percentage)
+		<$> field <*> field <*> field
 
 update_task_status :: Query
 update_task_status = "UPDATE tasks SET status = ? WHERE id = ?"
@@ -74,7 +79,7 @@ today_time_spent =
 	\FROM objectives LEFT JOIN events ON objectives.id = events.objective_id \
 	\WHERE start >= (strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) AND IFNULL(stop <= (strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) + 86399, 1) \
 	\GROUP BY objectives.id \
-	\ORDER BY SUM(IFNULL(stop, strftime('%s', 'now')) - start) DESC;"
+	\ORDER BY SUM(IFNULL(stop, strftime('%s', 'now')) - start) ASC;"
 
 tomorrow_tasks :: Query
 tomorrow_tasks =

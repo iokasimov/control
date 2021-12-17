@@ -17,6 +17,7 @@ import "sqlite-simple" Database.SQLite.Simple (Connection, FromRow, Query, Only 
 
 import Control.Pandora.Entity.ID (ID (unid))
 import Control.Pandora.Entity.Objective (Objective)
+import Control.Pandora.Entity.Amount (Amount)
 import Control.Pandora.Entity.Event (Event)
 import Control.Pandora.Entity.Task (Task, Status (TODO, DONE, GONE))
 import Control.Pandora.SQLite (today_events, today_tasks, today_time_spent, update_task_status, start_objective_event, stop_objective_event)
@@ -24,7 +25,7 @@ import Control.Pandora.TUI (prepare_terminal, refresh_terminal, line, focused, r
 import Control.Pandora.Utils (keystroke, to_list, to_zipper)
 
 type Events = List Event
-type Timesheet = List (String, String, Int)
+type Timesheet = List Amount
 type Tasks = Tape List Task
 type Facts = Events :*: Timesheet :*: Maybe Tasks
 
@@ -115,7 +116,7 @@ load_facts connection = (\events timeshet tasks -> events :*: timeshet :*: tasks
 	load_today_tasks :: IO (Maybe Tasks)
 	load_today_tasks = to_zipper . to_list <-|- from_db today_tasks
 
-	load_today_time_spent :: IO :. List := (String, String, Int)
+	load_today_time_spent :: IO Timesheet
 	load_today_time_spent = to_list <-|- from_db today_time_spent
 
 	from_db :: FromRow row => Query -> IO [row]
