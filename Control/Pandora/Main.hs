@@ -28,7 +28,7 @@ type Timesheet = List Amount
 type Tasks = Tape List Task
 type Facts = Timeline :*: Timesheet :*: Maybe Tasks
 
-type TUI = Environment Connection :> State Facts :> Maybe :> IO
+type TUI = Provision Connection :> State Facts :> Maybe :> IO
 
 display :: Facts -> IO ()
 display (timeline :*: timesheet :*: Just tasks) = void $ do
@@ -46,15 +46,15 @@ cursor :: (Stateful Facts t, Optional t, Monad (->) t) => State Task r -> t r
 cursor x = extract <-|- (adapt =<< zoom @Facts # perhaps @Tasks # overlook (zoom @Tasks # access @Task . sub @Root # overlook x))
 
 handle :: ASCII -> TUI ()
-handle (Letter Lower R) = void $ replace =<< adapt . load_facts =<< env
+handle (Letter Lower R) = void $ replace =<< adapt . load_facts =<< provided
 handle (Letter Lower J) = adapt # navigate @Right
 handle (Letter Lower K) = adapt # navigate @Left
 handle (Letter Upper G) = pass -+- (change_status_in_db -*-*- adapt . confirmation) GONE
 handle (Letter Upper T) = pass -+- (change_status_in_db -*-*- adapt . confirmation) TODO
 handle (Letter Upper D) = pass -+- (change_status_in_db -*-*- adapt . confirmation) DONE
-handle (Letter Upper I) = identity =<< insert_new_event <-|- env
+handle (Letter Upper I) = identity =<< insert_new_event <-|- provided
 	<-*- (adapt =<< zoom @Facts # perhaps @Tasks >>> sub @Root >>> access @Task >>> access @(ID Objective) # overlook current)
-handle (Letter Upper O) = identity =<< finish_event <-|- env
+handle (Letter Upper O) = identity =<< finish_event <-|- provided
 	<-*- (adapt =<< zoom @Facts # perhaps @Tasks >>> sub @Root >>> access @Task >>> access @(ID Objective) # overlook current)
 handle c = point ()
 
@@ -79,7 +79,7 @@ confirmation new = recognize =<< keystroke -*- message where
 -- Before we update row in DB, new status should already be set
 -- It would be better if we just get status and ID for the task right from zoomed state
 change_status_in_db :: Status -> TUI ()
-change_status_in_db new = extract =<< update_task_row <-|-|- (Identity <-|- env)
+change_status_in_db new = extract =<< update_task_row <-|-|- (Identity <-|- provided)
 	<-*-*- cursor (zoom @Task # access @(ID ()) # overlook (current @(ID ())))
 	<-*-*- cursor (zoom @Task # access @Status # overlook (replace @Status new)) where
 
@@ -96,11 +96,11 @@ eventloop :: TUI ()
 eventloop = forever_ $ handle =<< adapt keystroke -*- (adapt . display =<< current)
 
 load_facts :: Connection -> IO Facts
-load_facts connection = (\events timeshet tasks -> events :*: timeshet :*: tasks)
-	<-|- load_today_events <-*- load_today_timesheet <-*- load_today_tasks where
+load_facts connection = (\timeline timeshet tasks -> timeline :*: timeshet :*: tasks)
+	<-|- load_today_timeline <-*- load_today_timesheet <-*- load_today_tasks where
 
-	load_today_events :: IO Timeline
-	load_today_events = to_list <-|- from_db today_timeline
+	load_today_timeline :: IO Timeline
+	load_today_timeline = to_list <-|- from_db today_timeline
 
 	load_today_tasks :: IO (Maybe Tasks)
 	load_today_tasks = to_zipper . to_list <-|- from_db today_tasks
