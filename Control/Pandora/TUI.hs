@@ -24,7 +24,7 @@ underlined text = "\ESC[4m" <> text <> "\ESC[0m"
 bold text = "\ESC[1m" <> text <> "\ESC[0m"
 heading text = "\n" <> text <> "\n"
 
-line text = "   " <> text
-focused text = " [*] " <> bold text
-record text = " [ ] " <> text
+line text = "    " <> text
+focused text = " => " <> bold text
+record text = "    " <> text
 
