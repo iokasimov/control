@@ -19,7 +19,7 @@ list_to_list ys (x : xs) = list_to_list # item @Push x ys # xs
 list_to_list ys [] = ys
 
 to_list :: [a] -> List a
-to_list = list_to_list # TU Nothing
+to_list = list_to_list empty
 
 to_zipper :: List a -> Maybe :. Tape List := a
 to_zipper = run . into @(Tape List)

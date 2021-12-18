@@ -1,6 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
-
 module Main where
 
 import "pandora" Pandora.Core
@@ -50,15 +49,14 @@ handle :: ASCII -> TUI ()
 handle (Letter Lower R) = void $ replace =<< adapt . load_facts =<< env
 handle (Letter Lower J) = adapt # navigate @Right
 handle (Letter Lower K) = adapt # navigate @Left
-handle (Letter Upper G) = pass -+- (change_status_in_db -*-*- confirmation) GONE
-handle (Letter Upper T) = pass -+- (change_status_in_db -*-*- confirmation) TODO
-handle (Letter Upper D) = pass -+- (change_status_in_db -*-*- confirmation) DONE
-handle (Letter Upper I) = identity =<< insert_new_event <-|- env <-*- focused_obj_id
-handle (Letter Upper O) = identity =<< finish_event <-|- env <-*- focused_obj_id
+handle (Letter Upper G) = pass -+- (change_status_in_db -*-*- adapt . confirmation) GONE
+handle (Letter Upper T) = pass -+- (change_status_in_db -*-*- adapt . confirmation) TODO
+handle (Letter Upper D) = pass -+- (change_status_in_db -*-*- adapt . confirmation) DONE
+handle (Letter Upper I) = identity =<< insert_new_event <-|- env
+	<-*- (adapt =<< zoom @Facts # perhaps @Tasks >>> sub @Root >>> access @Task >>> access @(ID Objective) # overlook current)
+handle (Letter Upper O) = identity =<< finish_event <-|- env
+	<-*- (adapt =<< zoom @Facts # perhaps @Tasks >>> sub @Root >>> access @Task >>> access @(ID Objective) # overlook current)
 handle c = point ()
-
-focused_obj_id :: TUI := ID Objective
-focused_obj_id = cursor $ zoom @Task # access @(ID Objective) # extract <-|- overlook current
 
 insert_new_event :: Connection -> ID Objective -> TUI ()
 insert_new_event connection obj_id = adapt $ execute connection start_objective_event $ Only obj_id
@@ -66,38 +64,29 @@ insert_new_event connection obj_id = adapt $ execute connection start_objective_
 finish_event :: Connection -> ID Objective -> TUI ()
 finish_event connection obj_id = adapt $ execute connection stop_objective_event $ Only obj_id
 
-confirmation :: Status -> TUI ()
-confirmation new = adapt choice -*- adapt dialog where
-
-	choice :: Maybe :> IO := ()
-	choice = recognize =<< keystroke
+confirmation :: Status -> Maybe :> IO := ()
+confirmation new = recognize =<< keystroke -*- message where
 
 	recognize :: ASCII -> Maybe :> IO := ()
 	recognize (Letter Upper N) = nothing
 	recognize (Letter Upper Y) = point ()
-	recognize _ = choice
+	recognize _ = confirmation new
 
-	dialog :: State Facts :> Maybe :> IO := ()
-	dialog = message =<< title
-
-	title :: State Facts :> Maybe :> IO := String
-	title = cursor $ zoom @Task # access @String # extract <-|- overlook current
-
-	message :: String -> State Facts :> Maybe :> IO := ()
-	message task = adapt . putStrLn . heading . line . negative
+	message :: Maybe :> IO := ()
+	message = adapt . putStrLn . heading . line . negative
 		$ "Are you sure you want to mark this task as [" + show new + "]? (Yes/No)"
 
 -- Before we update row in DB, new status should already be set
 -- It would be better if we just get status and ID for the task right from zoomed state
 change_status_in_db :: Status -> TUI ()
-change_status_in_db new = identity =<< update_task_row <-|- env 
-	<-*- cursor (zoom @Task # access @(ID ()) # unid . extract <-|- overlook (current @(ID ())))
-	<-*- cursor (zoom @Task # access @Status # extract <-|- overlook (replace @Status new)) where
+change_status_in_db new = extract =<< update_task_row <-|-|- (Identity <-|- env)
+	<-*-*- cursor (zoom @Task # access @(ID ()) # overlook (current @(ID ())))
+	<-*-*- cursor (zoom @Task # access @Status # overlook (replace @Status new)) where
 
-	update_task_row :: Connection -> Int -> Status -> TUI ()
-	update_task_row connection id status = adapt $ execute connection update_task_status (status, id)
+	update_task_row :: Connection -> ID () -> Status -> TUI ()
+	update_task_row connection id status = adapt $ execute connection update_task_status (status, unid id)
 
-navigate :: forall direction . Morphed # Rotate direction # Tape List # Maybe <:.> Tape List => State Facts ()
+navigate :: forall direction . Morphed # Rotate direction # Tape List # Maybe <::> Tape List => State Facts ()
 navigate = void $ zoom @Facts # access @(Maybe Tasks) $ overlook . overlook $ modify move where
 
 	move :: Tape List Task -> Tape List Task
