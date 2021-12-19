@@ -42,9 +42,6 @@ display (timeline :*: timesheet :*: Just tasks) = void $ do
 	putStrLn . focused . show -<<-<<- view (sub @Root) tasks
 	putStrLn . record . show -<<-<<- view (sub @Right) tasks
 
-cursor :: (Stateful Facts t, Optional t, Monad (->) t) => State Task r -> t r
-cursor x = extract <-|- (adapt =<< zoom @Facts # perhaps @Tasks # overlook (zoom @Tasks # access @Task . sub @Root # overlook x))
-
 handle :: ASCII -> TUI ()
 handle (Letter Lower R) = void $ replace =<< adapt . load_facts =<< provided
 handle (Letter Lower J) = adapt # navigate @Right
@@ -79,9 +76,9 @@ confirmation new = recognize =<< keystroke -*- message where
 -- Before we update row in DB, new status should already be set
 -- It would be better if we just get status and ID for the task right from zoomed state
 change_status_in_db :: Status -> TUI ()
-change_status_in_db new = extract =<< update_task_row <-|-|- (Identity <-|- provided)
-	<-*-*- cursor (zoom @Task # access @(ID ()) # overlook (current @(ID ())))
-	<-*-*- cursor (zoom @Task # access @Status # overlook (replace @Status new)) where
+change_status_in_db new = identity =<< update_task_row <-|- provided
+	<-*- (adapt =<< zoom @Facts # perhaps @Tasks >>> sub @Root >>> access @Task >>> access @(ID ()) # overlook current)
+	<-*- (adapt =<< zoom @Facts # perhaps @Tasks >>> sub @Root >>> access @Task >>> access @Status # overlook (replace new)) where
 
 	update_task_row :: Connection -> ID () -> Status -> TUI ()
 	update_task_row connection id status = adapt $ execute connection update_task_status (status, unid id)
@@ -100,16 +97,13 @@ load_facts connection = (\timeline timeshet tasks -> timeline :*: timeshet :*: t
 	<-|- load_today_timeline <-*- load_today_timesheet <-*- load_today_tasks where
 
 	load_today_timeline :: IO Timeline
-	load_today_timeline = to_list <-|- from_db today_timeline
+	load_today_timeline = to_list <-|- query_ connection today_timeline
 
 	load_today_tasks :: IO (Maybe Tasks)
-	load_today_tasks = to_zipper . to_list <-|- from_db today_tasks
+	load_today_tasks = to_zipper . to_list <-|- query_ connection today_tasks
 
 	load_today_timesheet :: IO Timesheet
-	load_today_timesheet = to_list <-|- from_db today_timesheet
-
-	from_db :: FromRow row => Query -> IO [row]
-	from_db = query_ connection
+	load_today_timesheet = to_list <-|- query_ connection today_timesheet
 
 main = do
 	connection <- open "facts.db"
