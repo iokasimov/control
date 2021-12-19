@@ -53,13 +53,13 @@ handle (Letter Upper I) = identity =<< insert_new_event <-|- provided
 	<-*- (adapt =<< zoom @Facts # perhaps @Tasks >>> sub @Root >>> access @Task >>> access @(ID Objective) # overlook current)
 handle (Letter Upper O) = identity =<< finish_event <-|- provided
 	<-*- (adapt =<< zoom @Facts # perhaps @Tasks >>> sub @Root >>> access @Task >>> access @(ID Objective) # overlook current)
-handle c = point ()
+handle _ = point ()
 
 insert_new_event :: Connection -> ID Objective -> TUI ()
-insert_new_event connection obj_id = adapt $ execute connection start_objective_event $ Only obj_id
+insert_new_event connection = adapt . execute connection start_objective_event . Only
 
 finish_event :: Connection -> ID Objective -> TUI ()
-finish_event connection obj_id = adapt $ execute connection stop_objective_event $ Only obj_id
+finish_event connection = adapt . execute connection stop_objective_event . Only
 
 confirmation :: Status -> Maybe :> IO := ()
 confirmation new = recognize =<< keystroke -*- message where
@@ -86,24 +86,17 @@ change_status_in_db new = identity =<< update_task_row <-|- provided
 navigate :: forall direction . Morphed # Rotate direction # Tape List # Maybe <::> Tape List => State Facts ()
 navigate = void $ zoom @Facts # access @(Maybe Tasks) $ overlook . overlook $ modify move where
 
-	move :: Tape List Task -> Tape List Task
-	move z = resolve @(Tape List Task) identity z # run (rotate @direction z)
+	move :: Tasks -> Tasks
+	move z = resolve @Tasks identity z # run (rotate @direction z)
 
 eventloop :: TUI ()
 eventloop = forever_ $ handle =<< adapt keystroke -*- (adapt . display =<< current)
 
 load_facts :: Connection -> IO Facts
 load_facts connection = (\timeline timeshet tasks -> timeline :*: timeshet :*: tasks)
-	<-|- load_today_timeline <-*- load_today_timesheet <-*- load_today_tasks where
-
-	load_today_timeline :: IO Timeline
-	load_today_timeline = to_list <-|- query_ connection today_timeline
-
-	load_today_tasks :: IO (Maybe Tasks)
-	load_today_tasks = to_zipper . to_list <-|- query_ connection today_tasks
-
-	load_today_timesheet :: IO Timesheet
-	load_today_timesheet = to_list <-|- query_ connection today_timesheet
+	<-|- (to_list <-|- query_ connection today_timeline)
+	<-*- (to_list <-|- query_ connection today_timesheet)
+	<-*- (to_zipper . to_list <-|- query_ connection today_tasks)
 
 main = do
 	connection <- open "facts.db"

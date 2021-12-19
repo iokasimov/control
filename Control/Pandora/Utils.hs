@@ -1,4 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE StandaloneDeriving #-}
 module Control.Pandora.Utils where
 
 import "pandora" Pandora.Core
@@ -10,9 +11,23 @@ import "base" Data.Char (Char, ord)
 import "base" Data.List ((++))
 import "base" Data.String (String)
 import "base" System.IO (getChar)
+import "base" Text.Show (Show)
 
 instance Semigroup String where
 	(+) = (++)
+
+deriving instance Show a => Show (Maybe a)
+
+deriving instance Show Control
+deriving instance Show Case
+deriving instance Show Letter
+deriving instance Show Number
+deriving instance Show Bracket
+deriving instance Show Sign
+deriving instance Show Quote
+deriving instance Show Slash
+deriving instance Show Position
+deriving instance Show ASCII
 
 list_to_list :: List a -> [a] -> List a
 list_to_list ys (x : xs) = list_to_list # item @Push x ys # xs
@@ -155,5 +170,6 @@ castASCII c = case ord c of
 	123 -> Just $ Sign $ Bracket Opened Curly
 	124 -> Just $ Sign Bar
 	125 -> Just $ Sign $ Bracket Closed Curly
-	124 -> Just $ Sign Tilde
+	126 -> Just $ Sign Tilde
+	127 -> Just $ Control DEL
 	_ -> Nothing
