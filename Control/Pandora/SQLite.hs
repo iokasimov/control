@@ -52,12 +52,14 @@ update_task_status = "UPDATE tasks SET status = ? WHERE id = ?"
 
 today_tasks :: Query
 today_tasks =
-	"SELECT tasks.id, status, mode, objective_id, \
+	"SELECT tasks.id, \
+	\CASE WHEN IFNULL(stop <= strftime('%s', 'now'), 0) AND status = 1 THEN -2 ELSE status END, \
+	\mode, objective_id, \
 	\CASE WHEN resource_id IS NULL THEN objectives.title ELSE objectives.title || ': ' || resources.title END, \
-	\strftime('%H:%M', start, 'unixepoch', 'localtime'), \
+	\IFNULL(strftime('%H:%M', start, 'unixepoch', 'localtime'), '.....'), \
 	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), '.....') \
 	\FROM tasks INNER JOIN objectives on tasks.objective_id = objectives.id LEFT JOIN resources ON tasks.resource_id = resources.id \
-	\WHERE start >= " <> start_of_today <> " AND IFNULL(stop <= " <> end_of_today <> ", 1) \
+	\WHERE IFNULL(start >= " <> start_of_today <> ", 0) AND IFNULL(stop <= " <> end_of_today <> ", 1) OR (status = 1 AND IFNULL(stop <= strftime ('%s', 'now'), 0)) \
 	\ORDER BY status, mode, start;"
 
 today_timeline :: Query
