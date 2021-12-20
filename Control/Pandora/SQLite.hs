@@ -50,6 +50,9 @@ instance FromRow Amount where
 update_task_status :: Query
 update_task_status = "UPDATE tasks SET status = ? WHERE id = ?"
 
+shift_task_bounds :: Query
+shift_task_bounds = "UPDATE tasks SET start = start + ?, stop = stop + ? WHERE id = ?"
+
 today_tasks :: Query
 today_tasks =
 	"SELECT tasks.id, \

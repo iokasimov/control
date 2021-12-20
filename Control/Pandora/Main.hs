@@ -19,7 +19,7 @@ import Control.Pandora.Entity.Objective (Objective)
 import Control.Pandora.Entity.Amount (Amount)
 import Control.Pandora.Entity.Event (Event)
 import Control.Pandora.Entity.Task (Task, Status (TODO, DONE, GONE))
-import Control.Pandora.SQLite (today_timeline, today_tasks, today_timesheet, update_task_status, start_objective_event, stop_objective_event)
+import Control.Pandora.SQLite (today_timeline, today_tasks, today_timesheet, update_task_status, shift_task_bounds, start_objective_event, stop_objective_event)
 import Control.Pandora.TUI (prepare_terminal, refresh_terminal, line, focused, record, bold, negative, underlined, heading)
 import Control.Pandora.Utils (keystroke, to_list, to_zipper)
 
@@ -53,6 +53,7 @@ handle (Letter Upper I) = identity =<< insert_new_event <-|- provided
 	<-*- (adapt =<< zoom @Facts # perhaps @Tasks >>> sub @Root >>> access @Task >>> access @(ID Objective) # overlook current)
 handle (Letter Upper O) = identity =<< finish_event <-|- provided
 	<-*- (adapt =<< zoom @Facts # perhaps @Tasks >>> sub @Root >>> access @Task >>> access @(ID Objective) # overlook current)
+handle (Letter Upper S) = pass -+- shift_task
 handle _ = point ()
 
 insert_new_event :: Connection -> ID Objective -> TUI ()
@@ -60,6 +61,25 @@ insert_new_event connection = adapt . execute connection start_objective_event .
 
 finish_event :: Connection -> ID Objective -> TUI ()
 finish_event connection = adapt . execute connection stop_objective_event . Only
+
+shift_task :: TUI ()
+shift_task = identity =<< shift_task_row <-|- provided
+	<-*- (adapt =<< zoom @Facts # perhaps @Tasks >>> sub @Root >>> access @Task >>> access @(ID ()) # overlook current)
+	<-*- adapt (shift_unit =<< keystroke -*- message) where
+
+	shift_unit :: ASCII -> Maybe :> IO := Int
+	shift_unit (Letter Upper H) = point 3600
+	shift_unit (Letter Upper D) = point 86400
+	shift_unit (Letter Upper W) = point 604800
+	shift_unit _ = nothing
+
+	message :: Maybe :> IO := ()
+	message = adapt . putStrLn . heading . line . negative
+		$ "Choose a time unit to shift the task on. (Hour/Day/Week)"
+
+	shift_task_row :: Connection -> ID () -> Int -> TUI ()
+	shift_task_row connection id shift = adapt # execute
+		connection shift_task_bounds (shift, shift, id)
 
 confirmation :: Status -> Maybe :> IO := ()
 confirmation new = recognize =<< keystroke -*- message where
