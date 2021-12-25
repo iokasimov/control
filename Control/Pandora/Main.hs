@@ -27,11 +27,12 @@ type Timeline = List Event
 type Timesheet = List Amount
 type Tasks = Tape List Task
 type Facts = Timeline :*: Timesheet :*: Maybe Tasks
+type Frames = Facts :+: ()
 
-type TUI = Provision Connection :> State Facts :> Maybe :> IO
+type TUI = Provision Connection :> State Frames :> Maybe :> IO
 
-display :: Facts -> IO ()
-display (timeline :*: timesheet :*: Just tasks) = void ! do
+display :: Frames -> IO ()
+display (Option (timeline :*: timesheet :*: Just tasks)) = void ! do
 	refresh_terminal
 	putStrLn . heading . line . underlined ! "Timeline for today"
 	putStrLn . line . show <<- timeline
@@ -43,16 +44,16 @@ display (timeline :*: timesheet :*: Just tasks) = void ! do
 	putStrLn . record . show <<-<<- view (sub @Right) tasks
 
 handle :: ASCII -> TUI ()
-handle (Letter Lower R) = void ! replace =<< adapt . load_facts =<< provided
+handle (Letter Lower R) = void ! replace @Frames . Option =<< adapt . load_facts =<< provided
 handle (Letter Lower J) = adapt # navigate @Right
 handle (Letter Lower K) = adapt # navigate @Left
 handle (Letter Upper G) = pass -+- (change_status_in_db .-*-*- adapt . confirmation) GONE
 handle (Letter Upper T) = pass -+- (change_status_in_db .-*-*- adapt . confirmation) TODO
 handle (Letter Upper D) = pass -+- (change_status_in_db .-*-*- adapt . confirmation) DONE
 handle (Letter Upper I) = identity =<< insert_new_event <-|- provided
-	<-*- (adapt =<< zoom @Facts # perhaps @Tasks >>> sub @Root >>> access @Task >>> access @(ID Objective) # overlook current)
+	<-*- (adapt =<< zoom @Frames # perhaps @Facts >>> perhaps @Tasks >>> sub @Root >>> access @Task >>> access @(ID Objective) # overlook current)
 handle (Letter Upper O) = identity =<< finish_event <-|- provided
-	<-*- (adapt =<< zoom @Facts # perhaps @Tasks >>> sub @Root >>> access @Task >>> access @(ID Objective) # overlook current)
+	<-*- (adapt =<< zoom @Frames # perhaps @Facts >>> perhaps @Tasks >>> sub @Root >>> access @Task >>> access @(ID Objective) # overlook current)
 handle (Letter Upper S) = pass -+- shift_task
 handle _ = point ()
 
@@ -64,7 +65,7 @@ finish_event connection = adapt . execute connection stop_objective_event . Only
 
 shift_task :: TUI ()
 shift_task = identity =<< shift_task_row <-|- provided
-	<-*- (adapt =<< zoom @Facts # perhaps @Tasks >>> sub @Root >>> access @Task >>> access @(ID ()) # overlook current)
+	<-*- (adapt =<< zoom @Frames # perhaps @Facts >>> perhaps @Tasks >>> sub @Root >>> access @Task >>> access @(ID ()) # overlook current)
 	<-*- adapt (shift_unit =<< keystroke .-*- message) where
 
 	shift_unit :: ASCII -> Maybe :> IO := Int
@@ -97,14 +98,14 @@ confirmation new = recognize =<< keystroke .-*- message where
 -- It would be better if we just get status and ID for the task right from zoomed state
 change_status_in_db :: Status -> TUI ()
 change_status_in_db new = identity =<< update_task_row <-|- provided
-	<-*- (adapt =<< zoom @Facts # perhaps @Tasks >>> sub @Root >>> access @Task >>> access @(ID ()) # overlook current)
-	<-*- (adapt =<< zoom @Facts # perhaps @Tasks >>> sub @Root >>> access @Task >>> access @Status # overlook (replace new)) where
+	<-*- (adapt =<< zoom @Frames # perhaps @Facts >>> perhaps @Tasks >>> sub @Root >>> access @Task >>> access @(ID ()) # overlook current)
+	<-*- (adapt =<< zoom @Frames # perhaps @Facts >>> perhaps @Tasks >>> sub @Root >>> access @Task >>> access @Status # overlook (replace new)) where
 
 	update_task_row :: Connection -> ID () -> Status -> TUI ()
 	update_task_row connection id status = adapt # execute connection update_task_status (status, unid id)
 
-navigate :: forall direction . Morphed # Rotate direction # Tape List # Maybe <::> Tape List => State Facts ()
-navigate = void ! zoom @Facts # perhaps @Tasks # overlook (modify move) where
+navigate :: forall direction . Morphed # Rotate direction # Tape List # Maybe <::> Tape List => State Frames ()
+navigate = void ! zoom @Frames # perhaps @Facts >>> perhaps @Tasks # overlook (modify move) where
 
 	move :: Tasks -> Tasks
 	move z = resolve @Tasks identity z # run (rotate @direction z)
@@ -122,4 +123,4 @@ main = do
 	connection <- open "facts.db"
 	prepare_terminal
 	facts <- load_facts connection
-	run (eventloop ! connection ! facts)
+	run (eventloop ! connection ! Option facts)
