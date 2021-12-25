@@ -31,24 +31,24 @@ type Facts = Timeline :*: Timesheet :*: Maybe Tasks
 type TUI = Provision Connection :> State Facts :> Maybe :> IO
 
 display :: Facts -> IO ()
-display (timeline :*: timesheet :*: Just tasks) = void $ do
+display (timeline :*: timesheet :*: Just tasks) = void ! do
 	refresh_terminal
-	putStrLn . heading . line . underlined $ "Timeline for today"
+	putStrLn . heading . line . underlined ! "Timeline for today"
 	putStrLn . line . show <<- timeline
-	putStrLn . heading . line . underlined $ "Timesheet for today"
+	putStrLn . heading . line . underlined ! "Timesheet for today"
 	putStrLn . line . show <<- timesheet
-	putStrLn . heading . line . underlined $ "Tasks for today"
-	putStrLn . record . show -<<-<<- (Reverse <-|- view (sub @Left) tasks)
-	putStrLn . focused . show -<<-<<- view (sub @Root) tasks
-	putStrLn . record . show -<<-<<- view (sub @Right) tasks
+	putStrLn . heading . line . underlined ! "Tasks for today"
+	putStrLn . record . show <<-<<- (Reverse <-|- view (sub @Left) tasks)
+	putStrLn . focused . show <<-<<- view (sub @Root) tasks
+	putStrLn . record . show <<-<<- view (sub @Right) tasks
 
 handle :: ASCII -> TUI ()
-handle (Letter Lower R) = void $ replace =<< adapt . load_facts =<< provided
+handle (Letter Lower R) = void ! replace =<< adapt . load_facts =<< provided
 handle (Letter Lower J) = adapt # navigate @Right
 handle (Letter Lower K) = adapt # navigate @Left
-handle (Letter Upper G) = pass -+- (change_status_in_db -*-*- adapt . confirmation) GONE
-handle (Letter Upper T) = pass -+- (change_status_in_db -*-*- adapt . confirmation) TODO
-handle (Letter Upper D) = pass -+- (change_status_in_db -*-*- adapt . confirmation) DONE
+handle (Letter Upper G) = pass -+- (change_status_in_db .-*-*- adapt . confirmation) GONE
+handle (Letter Upper T) = pass -+- (change_status_in_db .-*-*- adapt . confirmation) TODO
+handle (Letter Upper D) = pass -+- (change_status_in_db .-*-*- adapt . confirmation) DONE
 handle (Letter Upper I) = identity =<< insert_new_event <-|- provided
 	<-*- (adapt =<< zoom @Facts # perhaps @Tasks >>> sub @Root >>> access @Task >>> access @(ID Objective) # overlook current)
 handle (Letter Upper O) = identity =<< finish_event <-|- provided
@@ -65,7 +65,7 @@ finish_event connection = adapt . execute connection stop_objective_event . Only
 shift_task :: TUI ()
 shift_task = identity =<< shift_task_row <-|- provided
 	<-*- (adapt =<< zoom @Facts # perhaps @Tasks >>> sub @Root >>> access @Task >>> access @(ID ()) # overlook current)
-	<-*- adapt (shift_unit =<< keystroke -*- message) where
+	<-*- adapt (shift_unit =<< keystroke .-*- message) where
 
 	shift_unit :: ASCII -> Maybe :> IO := Int
 	shift_unit (Letter Upper H) = point 3600
@@ -75,14 +75,14 @@ shift_task = identity =<< shift_task_row <-|- provided
 
 	message :: Maybe :> IO := ()
 	message = adapt . putStrLn . heading . line . negative
-		$ "Choose a time unit to shift the task on. (Hour/Day/Week)"
+		! "Choose a time unit to shift the task on. (Hour/Day/Week)"
 
 	shift_task_row :: Connection -> ID () -> Int -> TUI ()
 	shift_task_row connection id shift = adapt # execute
 		connection shift_task_bounds (shift, shift, id)
 
 confirmation :: Status -> Maybe :> IO := ()
-confirmation new = recognize =<< keystroke -*- message where
+confirmation new = recognize =<< keystroke .-*- message where
 
 	recognize :: ASCII -> Maybe :> IO := ()
 	recognize (Letter Upper N) = nothing
@@ -91,7 +91,7 @@ confirmation new = recognize =<< keystroke -*- message where
 
 	message :: Maybe :> IO := ()
 	message = adapt . putStrLn . heading . line . negative
-		$ "Are you sure you want to mark this task as [" + show new + "]? (Yes/No)"
+		! "Are you sure you want to mark this task as [" + show new + "]? (Yes/No)"
 
 -- Before we update row in DB, new status should already be set
 -- It would be better if we just get status and ID for the task right from zoomed state
@@ -101,16 +101,16 @@ change_status_in_db new = identity =<< update_task_row <-|- provided
 	<-*- (adapt =<< zoom @Facts # perhaps @Tasks >>> sub @Root >>> access @Task >>> access @Status # overlook (replace new)) where
 
 	update_task_row :: Connection -> ID () -> Status -> TUI ()
-	update_task_row connection id status = adapt $ execute connection update_task_status (status, unid id)
+	update_task_row connection id status = adapt # execute connection update_task_status (status, unid id)
 
 navigate :: forall direction . Morphed # Rotate direction # Tape List # Maybe <::> Tape List => State Facts ()
-navigate = void $ zoom @Facts # access @(Maybe Tasks) $ overlook . overlook $ modify move where
+navigate = void ! zoom @Facts # perhaps @Tasks # overlook (modify move) where
 
 	move :: Tasks -> Tasks
 	move z = resolve @Tasks identity z # run (rotate @direction z)
 
 eventloop :: TUI ()
-eventloop = forever_ $ handle =<< adapt keystroke -*- (adapt . display =<< current)
+eventloop = forever_ ! handle =<< adapt keystroke .-*- (adapt . display =<< current)
 
 load_facts :: Connection -> IO Facts
 load_facts connection = (\timeline timeshet tasks -> timeline :*: timeshet :*: tasks)
@@ -122,4 +122,4 @@ main = do
 	connection <- open "facts.db"
 	prepare_terminal
 	facts <- load_facts connection
-	run $ eventloop ! connection ! facts
+	run (eventloop ! connection ! facts)
