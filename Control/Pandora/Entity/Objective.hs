@@ -7,3 +7,6 @@ import "pandora" Pandora.Paradigm ((:*:) ((:*:)))
 import Control.Pandora.Entity.ID (ID)
 
 type Objective = ID () :*: String
+
+instance Show Objective where
+	show (_ :*: title) = title
