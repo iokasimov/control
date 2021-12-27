@@ -46,6 +46,8 @@ display (Option (timeline :*: timesheet :*: Just tasks)) = void ! do
 	putStrLn . focused . show <<-<<- view (sub @Root) tasks
 	putStrLn . record . show <<-<<- view (sub @Right) tasks
 display (Adoption picker) = void ! do
+	refresh_terminal
+	putStrLn . heading . line . underlined ! "Pick an objective:"
 	putStrLn . record . show <<-<<- (Reverse <-|- view (sub @Left) picker)
 	putStrLn . focused . show <<-<<- view (sub @Root) picker
 	putStrLn . record . show <<-<<- view (sub @Right) picker
@@ -54,27 +56,32 @@ move :: forall direction element . Morphed # Rotate direction # Tape List # Mayb
 move z = resolve @(Tape List element) identity z # run (rotate @direction z)
 
 handle :: ASCII -> TUI ()
-handle (Letter Lower R) = void ! replace @Frames . Option =<< adapt . load_facts =<< provided
+handle (Letter Lower R) = void ! replace @Frames . Option =<< adapt . load_facts =<< provided @Connection
 handle (Letter Lower J) = void # modify @Frames (over (perhaps @(Picker Task)) (move @Right <-|-) :*: move @Right <-|-<-|-)
 handle (Letter Lower K) = void # modify @Frames (over (perhaps @(Picker Task)) (move @Left <-|-) :*: move @Left <-|-<-|-)
 handle (Letter Upper G) = pass -+- (change_status_in_db .-*-*- adapt . confirmation) GONE
 handle (Letter Upper T) = pass -+- (change_status_in_db .-*-*- adapt . confirmation) TODO
 handle (Letter Upper D) = pass -+- (change_status_in_db .-*-*- adapt . confirmation) DONE
-handle (Letter Upper I) = identity =<< insert_new_event <-|- provided
-	<-*- (adapt =<< zoom @Frames # perhaps @Overview >>> perhaps @(Picker Task) >>> sub @Root >>> access @Task >>> access @(ID Objective) # overlook current)
-handle (Letter Upper O) = identity =<< finish_event <-|- provided
+-- handle (Letter Upper I) = identity =<< insert_new_event <-|- provided @Connection
+	-- <-*- (adapt =<< zoom @Frames # perhaps @Overview >>> perhaps @(Picker Task) >>> sub @Root >>> access @Task >>> access @(ID Objective) # overlook current)
+handle (Letter Upper I) = void ! replace @Frames . Adoption =<< adapt . load_objectives =<< provided @Connection
+handle (Control ESC) = void ! replace @Frames . Option =<< adapt . load_facts =<< provided @Connection
+handle (Letter Upper O) = identity =<< finish_event <-|- provided @Connection
 	<-*- (adapt =<< zoom @Frames # perhaps @Overview >>> perhaps @(Picker Task) >>> sub @Root >>> access @Task >>> access @(ID Objective) # overlook current)
 handle (Letter Upper S) = pass -+- shift_task
+-- It works exclusively for clocking in objectives and switches back to overview frame
+handle (Control VT) = handle (Control ESC) .-*- (identity =<< insert_new_event <-|- provided @Connection
+	<-*- (adapt =<< zoom @Frames # perhaps @(Picker Objective) >>> sub @Root >>> access @Objective >>> access @(ID ()) # overlook current))
 handle _ = point ()
 
-insert_new_event :: Connection -> ID Objective -> TUI ()
+insert_new_event :: Connection -> ID () -> TUI ()
 insert_new_event connection = adapt . execute connection start_objective_event . Only
 
 finish_event :: Connection -> ID Objective -> TUI ()
 finish_event connection = adapt . execute connection stop_objective_event . Only
 
 shift_task :: TUI ()
-shift_task = identity =<< shift_task_row <-|- provided
+shift_task = identity =<< shift_task_row <-|- provided @Connection
 	<-*- (adapt =<< zoom @Frames # perhaps @Overview >>> perhaps @(Picker Task) >>> sub @Root >>> access @Task >>> access @(ID ()) # overlook current)
 	<-*- adapt (shift_unit =<< keystroke .-*- message) where
 
@@ -107,7 +114,7 @@ confirmation new = recognize =<< keystroke .-*- message where
 -- Before we update row in DB, new status should already be set
 -- It would be better if we just get status and ID for the task right from zoomed state
 change_status_in_db :: Status -> TUI ()
-change_status_in_db new = identity =<< update_task_row <-|- provided
+change_status_in_db new = identity =<< update_task_row <-|- provided @Connection
 	<-*- (adapt =<< zoom @Frames # perhaps @Overview >>> perhaps @(Picker Task) >>> sub @Root >>> access @Task >>> access @(ID ()) # overlook current)
 	<-*- (adapt =<< zoom @Frames # perhaps @Overview >>> perhaps @(Picker Task) >>> sub @Root >>> access @Task >>> access @Status # overlook (replace new)) where
 
@@ -122,6 +129,9 @@ load_facts connection = (\timeline timeshet tasks -> timeline :*: timeshet :*: t
 	<-|- (to_list <-|- query_ connection today_timeline)
 	<-*- (to_list <-|- query_ connection today_timesheet)
 	<-*- (to_zipper . to_list <-|- query_ connection today_tasks)
+
+load_objectives :: Connection -> Maybe :> IO := Picker Objective
+load_objectives connection = unite # to_zipper . to_list <-|- query_ connection "SELECT * FROM objectives;"
 
 main = do
 	connection <- open "facts.db"
