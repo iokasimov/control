@@ -10,9 +10,10 @@ import "pandora-io" Pandora.IO
 import "base" Data.Char (Char)
 import "base" Data.Int (Int)
 import "base" Data.String (String)
+import "base" Data.List (reverse)
 import "base" Text.Show (show)
-import "base" System.IO (putStrLn)
-import "sqlite-simple" Database.SQLite.Simple (Connection, FromRow, Query, Only (Only), open, query_, execute)
+import "base" System.IO (putStrLn, putStr, putChar)
+import "sqlite-simple" Database.SQLite.Simple (Connection, FromRow, Query, Only (Only), open, query_, query, execute)
 
 import Control.Pandora.Entity.ID (ID (unid))
 import Control.Pandora.Entity.Objective (Objective)
@@ -21,7 +22,7 @@ import Control.Pandora.Entity.Event (Event)
 import Control.Pandora.Entity.Task (Task, Status (TODO, DONE, GONE))
 import Control.Pandora.SQLite (today_timeline, today_tasks, today_timesheet, update_task_status, shift_task_bounds, start_objective_event, stop_objective_event)
 import Control.Pandora.TUI (prepare_terminal, refresh_terminal, line, focused, record, bold, negative, underlined, heading)
-import Control.Pandora.Utils (keystroke, to_list, to_zipper)
+import Control.Pandora.Utils (keystroke, to_list, to_zipper, letter_to_char)
 
 type Picker a = Tape List a
 
@@ -133,10 +134,69 @@ load_facts connection = (\timeline timeshet tasks -> timeline :*: timeshet :*: t
 load_objectives :: Connection -> Maybe :> IO := Picker Objective
 load_objectives connection = unite # to_zipper . to_list <-|- query_ connection "SELECT * FROM objectives;"
 
+type Texture = (List Letter :*: Maybe # Picker Objective) :+: Flip (:*:) (Maybe # Picker Objective) (List Letter)
+
+type Chooser = Provision Connection :> State Texture :> IO
+
+handle_chooser :: ASCII -> Chooser ()
+handle_chooser (Control HT) = void . modify @Texture ! \case
+	Option picker -> Adoption # Flip picker
+	Adoption (Flip searcher) -> Option searcher
+handle_chooser key = handle_choosur_subwidgets key -- update_objectives_list .-*- 
+
+handle_choosur_subwidgets :: ASCII -> Chooser ()
+handle_choosur_subwidgets key = update_objectives_list key =<< current @Texture
+
+update_objectives_list :: ASCII -> Texture -> Chooser ()
+update_objectives_list key (Option (filter :*: picker)) = void . replace @Texture . Option ! filter :*: (change_picker key <-|- picker)
+update_objectives_list key (Adoption (Flip (filter :*: _))) = let new = change_filter key filter in
+	void . replace @Texture . Adoption . Flip . (new :*:) =<< identity =<< (adapt . reload_objectives_by_filter % new) <-|- provided @Connection
+
+-- TODO: think about caching with prefixed tree where key is a searching pattern
+change_filter :: ASCII -> List Letter -> List Letter
+change_filter (Letter _ letter) = item @Push letter
+change_filter (Control DEL) = morph @Pop
+change_filter _ = identity
+
+change_picker :: ASCII -> Picker Objective -> Picker Objective
+change_picker (Letter Lower J) = move @Right
+change_picker (Letter Lower K) = move @Left
+change_picker _ = identity
+
+display_chooser :: Texture -> IO ()
+display_chooser (Option (filter :*: picker)) = void ! do
+	display_filter False filter
+	resolve @(Picker Objective) ! display_picker True ! putStrLn (record "No objectives found") ! picker
+display_chooser (Adoption (Flip (filter :*: picker))) = void ! do
+	display_filter True filter
+	resolve @(Picker Objective) ! display_picker False ! putStrLn (record "No objectives found") ! picker
+
+display_filter :: Boolean -> List Letter -> IO ()
+display_filter focus filter = void ! do
+	putStrLn "" .-*- refresh_terminal
+	putStr ! (focus ? focused ! record) "Search: \ESC[7m"
+	putStrLn "\ESC[0m" .-*- putStrLn "" .-*- (putChar . letter_to_char <<- Reverse filter)
+
+display_picker :: Boolean -> Picker Objective -> IO ()
+display_picker focus objectives = void ! do
+	putStrLn . record . show <<-<<- (Reverse <-|- view (sub @Left) objectives)
+	putStrLn . (focus ? focused ! record) . show <<-<<- view (sub @Root) objectives
+	putStrLn . record . show <<-<<- view (sub @Right) objectives
+
+eventloop_chooser :: Chooser ()
+eventloop_chooser = forever_ ! handle_chooser =<< adapt keystroke_chooser .-*- (adapt . display_chooser =<< current)
+
+keystroke_chooser :: IO ASCII
+keystroke_chooser = resolve @ASCII point keystroke_chooser =<< run keystroke
+
+reload_objectives_by_filter :: Connection -> List Letter -> IO :. Maybe :. Picker := Objective
+reload_objectives_by_filter connection pattern = let substring = reverse . show ! letter_to_char <-|- pattern in
+	to_zipper . to_list <-|- query connection "SELECT * FROM objectives WHERE title LIKE '%' || ? || '%';" (Only substring)
+
 main = do
 	connection <- open "facts.db"
 	prepare_terminal
-	facts <- load_facts connection
-	run (eventloop ! connection ! Option facts)
-	-- Just objectives <- to_zipper . to_list <-|- query_ connection "SELECT * FROM objectives;"
-	-- run (eventloop ! connection ! Adoption objectives)
+	-- facts <- load_facts connection
+	-- run (eventloop ! connection ! Option facts)
+	objectives <- reload_objectives_by_filter connection empty
+	eventloop_chooser ! connection ! Option (empty :*: objectives)

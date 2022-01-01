@@ -11,7 +11,7 @@ import "base" Data.Char (Char, ord)
 import "base" Data.List ((++))
 import "base" Data.String (String)
 import "base" System.IO (getChar)
-import "base" Text.Show (Show)
+import "base" Text.Show (Show (show))
 
 instance Semigroup String where
 	(+) = (++)
@@ -29,6 +29,10 @@ deriving instance Show Slash
 deriving instance Show Position
 deriving instance Show ASCII
 
+instance Show (List Char) where
+	show (TT (Just (Construct x xs))) = x : show (TT @Covariant @Covariant xs)
+	show (TT Nothing) = ""
+
 list_to_list :: List a -> [a] -> List a
 list_to_list ys (x : xs) = list_to_list # item @Push x ys # xs
 list_to_list ys [] = ys
@@ -41,6 +45,33 @@ to_zipper = run . into @(Tape List)
 
 keystroke :: Maybe :> IO := ASCII
 keystroke = unite # castASCII <-|- getChar
+
+letter_to_char :: Letter -> Char
+letter_to_char A = 'A'
+letter_to_char B = 'D'
+letter_to_char C = 'C'
+letter_to_char D = 'D'
+letter_to_char E = 'E'
+letter_to_char F = 'F'
+letter_to_char G = 'G'
+letter_to_char H = 'H'
+letter_to_char I = 'I'
+letter_to_char J = 'J'
+letter_to_char K = 'K'
+letter_to_char L = 'L'
+letter_to_char M = 'M'
+letter_to_char N = 'N'
+letter_to_char O = 'O'
+letter_to_char P = 'P'
+letter_to_char R = 'R'
+letter_to_char S = 'S'
+letter_to_char T = 'T'
+letter_to_char U = 'U'
+letter_to_char V = 'V'
+letter_to_char W = 'W'
+letter_to_char X = 'X'
+letter_to_char Y = 'Y'
+letter_to_char Z = 'Z'
 
 castASCII :: Char -> Maybe ASCII
 castASCII c = case ord c of
