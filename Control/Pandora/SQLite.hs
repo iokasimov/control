@@ -12,6 +12,7 @@ import "sqlite-simple" Database.SQLite.Simple.ToField (ToField (toField))
 import "sqlite-simple" Database.SQLite.Simple.Internal (Field (Field))
 
 import Control.Pandora.Entity.ID (ID (ID))
+import Control.Pandora.Entity.Objective (Objective)
 import Control.Pandora.Entity.Amount (Amount)
 import Control.Pandora.Entity.Event (Event)
 import Control.Pandora.Entity.Task (Task, Status (TODO, DONE, GONE, LATE))
@@ -34,6 +35,10 @@ instance ToField Status where
 	toField DONE = SQLInteger 0
 	toField GONE = SQLInteger (-1)
 	toField LATE = SQLInteger (-2)
+
+instance FromRow Objective where
+	fromRow = (\id title -> id :*: title)
+		<$> field <*> field
 
 instance FromRow Task where
 	fromRow = (\id status mode oid title start stop -> id :*: status :*: mode :*: oid :*: title :*: start :*: stop)
