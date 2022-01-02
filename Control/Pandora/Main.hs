@@ -25,18 +25,14 @@ import Control.Pandora.TUI (prepare_terminal, refresh_terminal, line, focused, r
 import Control.Pandora.Utils (keystroke, to_list, to_zipper, letter_to_char)
 
 type Picker a = Tape List a
-
 type Timeline = List Event
 type Timesheet = List Amount
 
 type Overview = Timeline :*: Timesheet :*: Maybe (Picker Task)
+type TUI = Provision Connection :> State Overview :> Maybe :> IO
 
-type Frames = Overview :+: Picker Objective
-
-type TUI = Provision Connection :> State Frames :> Maybe :> IO
-
-display :: Frames -> IO ()
-display (Option (timeline :*: timesheet :*: Just tasks)) = void ! do
+display :: Overview -> IO ()
+display (timeline :*: timesheet :*: Just tasks) = void ! do
 	refresh_terminal
 	putStrLn . heading . line . underlined ! "Timeline for today"
 	putStrLn . line . show <<- timeline
@@ -46,33 +42,25 @@ display (Option (timeline :*: timesheet :*: Just tasks)) = void ! do
 	putStrLn . record . show <<-<<- (Reverse <-|- view (sub @Left) tasks)
 	putStrLn . focused . show <<-<<- view (sub @Root) tasks
 	putStrLn . record . show <<-<<- view (sub @Right) tasks
-display (Adoption picker) = void ! do
-	refresh_terminal
-	putStrLn . heading . line . underlined ! "Pick an objective:"
-	putStrLn . record . show <<-<<- (Reverse <-|- view (sub @Left) picker)
-	putStrLn . focused . show <<-<<- view (sub @Root) picker
-	putStrLn . record . show <<-<<- view (sub @Right) picker
 
-move :: forall direction element . Morphed # Rotate direction # Tape List # Maybe <::> Tape List => Tape List element -> Tape List element
-move z = resolve @(Tape List element) identity z # run (rotate @direction z)
+move :: forall direction a . Morphed # Rotate direction # Tape List # Maybe <::> Tape List => Tape List a -> Tape List a
+move z = resolve @(Tape List a) identity z # run (rotate @direction z)
 
 handle :: ASCII -> TUI ()
-handle (Letter Lower R) = void ! replace @Frames . Option =<< adapt . load_facts =<< provided @Connection
-handle (Letter Lower J) = void # modify @Frames (over (perhaps @(Picker Task)) (move @Right <-|-) :*: move @Right <-|-<-|-)
-handle (Letter Lower K) = void # modify @Frames (over (perhaps @(Picker Task)) (move @Left <-|-) :*: move @Left <-|-<-|-)
+handle (Letter Lower R) = void ! replace @Overview =<< adapt . load_facts =<< provided @Connection
+handle (Letter Lower J) = adapt @TUI . void ! zoom @Overview @_ @(State Overview) # perhaps @(Picker Task) # overlook (modify @(Picker Task) (move @Right))
+handle (Letter Lower K) = adapt @TUI . void ! zoom @Overview @_ @(State Overview) # perhaps @(Picker Task) # overlook (modify @(Picker Task) (move @Left))
 handle (Letter Upper G) = pass -+- (change_status_in_db .-*-*- adapt . confirmation) GONE
 handle (Letter Upper T) = pass -+- (change_status_in_db .-*-*- adapt . confirmation) TODO
 handle (Letter Upper D) = pass -+- (change_status_in_db .-*-*- adapt . confirmation) DONE
--- handle (Letter Upper I) = identity =<< insert_new_event <-|- provided @Connection
-	-- <-*- (adapt =<< zoom @Frames # perhaps @Overview >>> perhaps @(Picker Task) >>> sub @Root >>> access @Task >>> access @(ID Objective) # overlook current)
-handle (Letter Upper I) = void ! replace @Frames . Adoption =<< adapt . load_objectives =<< provided @Connection
-handle (Control ESC) = void ! replace @Frames . Option =<< adapt . load_facts =<< provided @Connection
+handle (Letter Upper I) = handle (Letter Lower R) .-*- (identity =<< insert_new_event <-|- provided @Connection <-*- (adapt . (attached <-|-) . run_chooser =<< provided @Connection))
+
 handle (Letter Upper O) = identity =<< finish_event <-|- provided @Connection
-	<-*- (adapt =<< zoom @Frames # perhaps @Overview >>> perhaps @(Picker Task) >>> sub @Root >>> access @Task >>> access @(ID Objective) # overlook current)
+	<-*- (adapt =<< zoom @Overview # perhaps @(Picker Task) >>> sub @Root >>> access @Task >>> access @(ID Objective) # overlook current)
 handle (Letter Upper S) = pass -+- shift_task
 -- It works exclusively for clocking in objectives and switches back to overview frame
-handle (Control VT) = handle (Control ESC) .-*- (identity =<< insert_new_event <-|- provided @Connection
-	<-*- (adapt =<< zoom @Frames # perhaps @(Picker Objective) >>> sub @Root >>> access @Objective >>> access @(ID ()) # overlook current))
+-- handle (Control VT) = handle (Control ESC) .-*- (identity =<< insert_new_event <-|- provided @Connection
+	-- <-*- (adapt =<< zoom @Overview # perhaps @(Picker Objective) >>> sub @Root >>> access @Objective >>> access @(ID ()) # overlook current))
 handle _ = point ()
 
 insert_new_event :: Connection -> ID () -> TUI ()
@@ -83,7 +71,7 @@ finish_event connection = adapt . execute connection stop_objective_event . Only
 
 shift_task :: TUI ()
 shift_task = identity =<< shift_task_row <-|- provided @Connection
-	<-*- (adapt =<< zoom @Frames # perhaps @Overview >>> perhaps @(Picker Task) >>> sub @Root >>> access @Task >>> access @(ID ()) # overlook current)
+	<-*- (adapt =<< zoom @Overview # perhaps @(Picker Task) >>> sub @Root >>> access @Task >>> access @(ID ()) # overlook current)
 	<-*- adapt (shift_unit =<< keystroke .-*- message) where
 
 	shift_unit :: ASCII -> Maybe :> IO := Int
@@ -116,8 +104,8 @@ confirmation new = recognize =<< keystroke .-*- message where
 -- It would be better if we just get status and ID for the task right from zoomed state
 change_status_in_db :: Status -> TUI ()
 change_status_in_db new = identity =<< update_task_row <-|- provided @Connection
-	<-*- (adapt =<< zoom @Frames # perhaps @Overview >>> perhaps @(Picker Task) >>> sub @Root >>> access @Task >>> access @(ID ()) # overlook current)
-	<-*- (adapt =<< zoom @Frames # perhaps @Overview >>> perhaps @(Picker Task) >>> sub @Root >>> access @Task >>> access @Status # overlook (replace new)) where
+	<-*- (adapt =<< zoom @Overview # perhaps @(Picker Task) >>> sub @Root >>> access @Task >>> access @(ID ()) # overlook current)
+	<-*- (adapt =<< zoom @Overview # perhaps @(Picker Task) >>> sub @Root >>> access @Task >>> access @Status # overlook (replace new)) where
 
 	update_task_row :: Connection -> ID () -> Status -> TUI ()
 	update_task_row connection id status = adapt # execute connection update_task_status (status, unid id)
@@ -136,16 +124,18 @@ load_objectives connection = unite # to_zipper . to_list <-|- query_ connection 
 
 type Texture = (List Letter :*: Maybe # Picker Objective) :+: Flip (:*:) (Maybe # Picker Objective) (List Letter)
 
-type Chooser = Provision Connection :> State Texture :> IO
+type Chooser = Provision Connection :> State Texture :> Conclusion Objective :> IO
 
 handle_chooser :: ASCII -> Chooser ()
 handle_chooser (Control HT) = void . modify @Texture ! \case
 	Option picker -> Adoption # Flip picker
 	Adoption (Flip searcher) -> Option searcher
-handle_chooser key = handle_choosur_subwidgets key -- update_objectives_list .-*- 
+handle_chooser (Control VT) = choose_objective =<< current @Texture
+handle_chooser key = update_objectives_list key =<< current @Texture
 
-handle_choosur_subwidgets :: ASCII -> Chooser ()
-handle_choosur_subwidgets key = update_objectives_list key =<< current @Texture
+choose_objective :: Texture -> Chooser ()
+choose_objective (Option (filter :*: Just picker)) = failure # extract picker
+choose_objective _ = point ()
 
 update_objectives_list :: ASCII -> Texture -> Chooser ()
 update_objectives_list key (Option (filter :*: picker)) = void . replace @Texture . Option ! filter :*: (change_picker key <-|- picker)
@@ -193,10 +183,15 @@ reload_objectives_by_filter :: Connection -> List Letter -> IO :. Maybe :. Picke
 reload_objectives_by_filter connection pattern = let substring = reverse . show ! letter_to_char <-|- pattern in
 	to_zipper . to_list <-|- query connection "SELECT * FROM objectives WHERE title LIKE '%' || ? || '%';" (Only substring)
 
+run_chooser :: Connection -> IO Objective
+run_chooser connection = do
+	objectives <- reload_objectives_by_filter connection empty
+	(\case { Failure obj -> obj } ) <-|- run (eventloop_chooser ! connection ! Option (empty :*: objectives))
+
 main = do
 	connection <- open "facts.db"
 	prepare_terminal
-	-- facts <- load_facts connection
-	-- run (eventloop ! connection ! Option facts)
-	objectives <- reload_objectives_by_filter connection empty
-	eventloop_chooser ! connection ! Option (empty :*: objectives)
+	facts <- load_facts connection
+	run (eventloop ! connection ! facts)
+	-- objectives <- reload_objectives_by_filter connection empty
+	-- run (eventloop_chooser ! connection ! Option (empty :*: objectives))

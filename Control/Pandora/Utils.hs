@@ -48,7 +48,7 @@ keystroke = unite # castASCII <-|- getChar
 
 letter_to_char :: Letter -> Char
 letter_to_char A = 'A'
-letter_to_char B = 'D'
+letter_to_char B = 'B'
 letter_to_char C = 'C'
 letter_to_char D = 'D'
 letter_to_char E = 'E'
