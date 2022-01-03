@@ -20,7 +20,7 @@ import Control.Pandora.Utils (keystroke, to_list, to_zipper, letter_to_char)
 
 type Picker = Tape List
 
-type Texture = (List Letter :*: Maybe # Picker Objective) :+: Flip (:*:) (Maybe # Picker Objective) (List Letter)
+type Texture = (List Letter :*: Maybe # Picker Objective) :+: Flip (:*:) # Maybe (Picker Objective) # List Letter
 
 type Search = Provision Connection :> State Texture :> Conclusion Objective :> IO
 

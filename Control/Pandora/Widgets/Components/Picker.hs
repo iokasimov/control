@@ -9,5 +9,5 @@ import "pandora-io" Pandora.IO
 
 type Picker = Tape List
 
-move :: forall direction a . Morphed # Rotate direction # Tape List # Maybe <::> Tape List => Tape List a -> Tape List a
-move z = resolve @(Tape List a) identity z # run (rotate @direction z)
+move :: forall direction . Morphed # Rotate direction # Picker # Maybe <::> Picker => Picker ~> Picker
+move z = resolve @(Picker _) identity z # run (rotate @direction z)

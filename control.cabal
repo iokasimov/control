@@ -27,7 +27,17 @@ executable checklist
 
 executable todo
   main-is: Control/Pandora/Main.hs
-  other-modules: Control.Pandora.SQLite, Control.Pandora.TUI
+  other-modules:
+    Control.Pandora.Entity.Amount
+    Control.Pandora.Entity.Event
+    Control.Pandora.Entity.Objective
+    Control.Pandora.Entity.Task
+    Control.Pandora.Entity.ID
+    Control.Pandora.Widgets.Components.Picker
+    Control.Pandora.Widgets.Search
+    Control.Pandora.SQLite
+    Control.Pandora.TUI
+    Control.Pandora.Utils
   build-depends: base == 4.*, pandora, pandora-io, sqlite-simple
   default-extensions:
     DataKinds, ConstraintKinds, ExistentialQuantification, GADTs, QuantifiedConstraints, InstanceSigs
