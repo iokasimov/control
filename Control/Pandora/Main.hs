@@ -13,16 +13,16 @@ import "base" Data.String (String)
 import "base" Data.List (reverse)
 import "base" Text.Show (show)
 import "base" System.IO (putStrLn, putStr, putChar)
-import "sqlite-simple" Database.SQLite.Simple (Connection, FromRow, Query, Only (Only), open, query_, query, execute)
+import "sqlite-simple" Database.SQLite.Simple (Connection, FromRow, Query, Only (Only), open, query_, query, execute, execute_)
 
 import Control.Pandora.Entity.ID (ID (unid))
 import Control.Pandora.Entity.Objective (Objective)
 import Control.Pandora.Entity.Amount (Amount)
 import Control.Pandora.Entity.Event (Event)
 import Control.Pandora.Entity.Task (Task, Status (TODO, DONE, GONE))
-import Control.Pandora.SQLite (today_timeline, today_tasks, today_timesheet, update_task_status, shift_task_bounds, start_objective_event, stop_objective_event)
+import Control.Pandora.SQLite (today_timeline, today_tasks, today_timesheet, update_task_status, shift_task_bounds, start_objective_event, stop_all_objective_events)
 import Control.Pandora.Widgets.Search (run_search)
-import Control.Pandora.Widgets.Components.Picker (Picker, move)
+import Control.Pandora.Widgets.Components.Picker (Picker)
 import Control.Pandora.TUI (prepare_terminal, refresh_terminal, line, focused, record, bold, negative, underlined, heading)
 import Control.Pandora.Utils (keystroke, to_list, to_zipper, letter_to_char)
 
@@ -46,26 +46,21 @@ display (timeline :*: timesheet :*: Just (Turnover tasks)) = void ! do
 
 handle :: ASCII -> TUI ()
 handle (Letter Lower R) = void ! replace @Overview =<< adapt . load_facts =<< provided @Connection
-handle (Letter Lower J) = adapt @TUI . void ! zoom @Overview @_ @(State Overview) # perhaps @(Picker Task) # overlook (modify @(Picker Task) (move @Right))
-handle (Letter Lower K) = adapt @TUI . void ! zoom @Overview @_ @(State Overview) # perhaps @(Picker Task) # overlook (modify @(Picker Task) (move @Left))
+handle (Letter Lower J) = adapt @TUI . void ! zoom @Overview @_ @(State Overview) # perhaps @(Picker Task) # overlook (modify @(Picker Task) (rotate @Right))
+handle (Letter Lower K) = adapt @TUI . void ! zoom @Overview @_ @(State Overview) # perhaps @(Picker Task) # overlook (modify @(Picker Task) (rotate @Left))
 handle (Letter Upper G) = pass .-+- (change_status_in_db .-*-*- adapt . confirmation) GONE
 handle (Letter Upper T) = pass .-+- (change_status_in_db .-*-*- adapt . confirmation) TODO
 handle (Letter Upper D) = pass .-+- (change_status_in_db .-*-*- adapt . confirmation) DONE
-handle (Letter Upper I) = handle (Letter Lower R) .-*- (identity =<< insert_new_event <-|- provided @Connection <-*- (adapt . (attached <-|-) . run_search =<< provided @Connection))
-
-handle (Letter Upper O) = identity =<< finish_event <-|- provided @Connection
-	<-*- (adapt =<< zoom @Overview # perhaps @(Picker Task) >>> sub @Root >>> access @Task >>> access @(ID Objective) # overlook current)
+handle (Letter Upper I) = handle (Letter Lower R) .-*- (identity =<< insert_new_event <-|- provided @Connection <-*- (adapt . run_search =<< provided @Connection))
+handle (Letter Upper O) = identity =<< finish_all_events <-|- provided @Connection
 handle (Letter Upper S) = pass .-+- shift_task
--- It works exclusively for clocking in objectives and switches back to overview frame
--- handle (Control VT) = handle (Control ESC) .-*- (identity =<< insert_new_event <-|- provided @Connection
-	-- <-*- (adapt =<< zoom @Overview # perhaps @(Picker Objective) >>> sub @Root >>> access @Objective >>> access @(ID ()) # overlook current))
 handle _ = point ()
 
-insert_new_event :: Connection -> ID () -> TUI ()
-insert_new_event connection = adapt . execute connection start_objective_event . Only
+insert_new_event :: Connection -> Objective -> TUI ()
+insert_new_event connection = adapt . execute connection start_objective_event . Only . attached
 
-finish_event :: Connection -> ID Objective -> TUI ()
-finish_event connection = adapt . execute connection stop_objective_event . Only
+finish_all_events :: Connection -> TUI ()
+finish_all_events connection = adapt # execute_ connection stop_all_objective_events
 
 shift_task :: TUI ()
 shift_task = identity =<< shift_task_row <-|- provided @Connection

@@ -117,7 +117,7 @@ start_objective_event :: Query
 start_objective_event = 
 	"INSERT INTO events (objective_id, start) VALUES (?, strftime('%s', 'now'))"
 
-stop_objective_event :: Query
-stop_objective_event =
+stop_all_objective_events :: Query
+stop_all_objective_events =
 	"UPDATE events SET stop = strftime('%s', datetime('now')) \
-	\WHERE objective_id = ? AND stop IS NULL"
+	\WHERE stop IS NULL"
