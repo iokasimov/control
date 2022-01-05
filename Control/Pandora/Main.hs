@@ -22,11 +22,10 @@ import Control.Pandora.Entity.Event (Event)
 import Control.Pandora.Entity.Task (Task, Status (TODO, DONE, GONE))
 import Control.Pandora.SQLite (today_timeline, today_tasks, today_timesheet, update_task_status, shift_task_bounds, start_objective_event, stop_objective_event)
 import Control.Pandora.Widgets.Search (run_search)
-import Control.Pandora.Widgets.Components.Picker (move)
+import Control.Pandora.Widgets.Components.Picker (Picker, move)
 import Control.Pandora.TUI (prepare_terminal, refresh_terminal, line, focused, record, bold, negative, underlined, heading)
 import Control.Pandora.Utils (keystroke, to_list, to_zipper, letter_to_char)
 
-type Picker a = Tape List a
 type Timeline = List Event
 type Timesheet = List Amount
 
@@ -34,14 +33,14 @@ type Overview = Timeline :*: Timesheet :*: Maybe (Picker Task)
 type TUI = Provision Connection :> State Overview :> Maybe :> IO
 
 display :: Overview -> IO ()
-display (timeline :*: timesheet :*: Just tasks) = void ! do
+display (timeline :*: timesheet :*: Just (Turnover tasks)) = void ! do
 	refresh_terminal
 	putStrLn . heading . line . underlined ! "Timeline for today"
 	putStrLn . line . show <<- timeline
 	putStrLn . heading . line . underlined ! "Timesheet for today"
 	putStrLn . line . show <<- timesheet
 	putStrLn . heading . line . underlined ! "Tasks for today"
-	putStrLn . record . show <<-<<- (Reverse <-|- view (sub @Left) tasks)
+	putStrLn . record . show <<-<<- view (sub @Left) tasks
 	putStrLn . focused . show <<-<<- view (sub @Root) tasks
 	putStrLn . record . show <<-<<- view (sub @Right) tasks
 
@@ -49,14 +48,14 @@ handle :: ASCII -> TUI ()
 handle (Letter Lower R) = void ! replace @Overview =<< adapt . load_facts =<< provided @Connection
 handle (Letter Lower J) = adapt @TUI . void ! zoom @Overview @_ @(State Overview) # perhaps @(Picker Task) # overlook (modify @(Picker Task) (move @Right))
 handle (Letter Lower K) = adapt @TUI . void ! zoom @Overview @_ @(State Overview) # perhaps @(Picker Task) # overlook (modify @(Picker Task) (move @Left))
-handle (Letter Upper G) = pass -+- (change_status_in_db .-*-*- adapt . confirmation) GONE
-handle (Letter Upper T) = pass -+- (change_status_in_db .-*-*- adapt . confirmation) TODO
-handle (Letter Upper D) = pass -+- (change_status_in_db .-*-*- adapt . confirmation) DONE
+handle (Letter Upper G) = pass .-+- (change_status_in_db .-*-*- adapt . confirmation) GONE
+handle (Letter Upper T) = pass .-+- (change_status_in_db .-*-*- adapt . confirmation) TODO
+handle (Letter Upper D) = pass .-+- (change_status_in_db .-*-*- adapt . confirmation) DONE
 handle (Letter Upper I) = handle (Letter Lower R) .-*- (identity =<< insert_new_event <-|- provided @Connection <-*- (adapt . (attached <-|-) . run_search =<< provided @Connection))
 
 handle (Letter Upper O) = identity =<< finish_event <-|- provided @Connection
 	<-*- (adapt =<< zoom @Overview # perhaps @(Picker Task) >>> sub @Root >>> access @Task >>> access @(ID Objective) # overlook current)
-handle (Letter Upper S) = pass -+- shift_task
+handle (Letter Upper S) = pass .-+- shift_task
 -- It works exclusively for clocking in objectives and switches back to overview frame
 -- handle (Control VT) = handle (Control ESC) .-*- (identity =<< insert_new_event <-|- provided @Connection
 	-- <-*- (adapt =<< zoom @Overview # perhaps @(Picker Objective) >>> sub @Root >>> access @Objective >>> access @(ID ()) # overlook current))
@@ -116,10 +115,10 @@ load_facts :: Connection -> IO Overview
 load_facts connection = (\timeline timeshet tasks -> timeline :*: timeshet :*: tasks)
 	<-|- (to_list <-|- query_ connection today_timeline)
 	<-*- (to_list <-|- query_ connection today_timesheet)
-	<-*- (to_zipper . to_list <-|- query_ connection today_tasks)
+	<-*- (Turnover <-|-|- to_zipper . to_list <-|- query_ connection today_tasks)
 
 load_objectives :: Connection -> Maybe :> IO := Picker Objective
-load_objectives connection = unite # to_zipper . to_list <-|- query_ connection "SELECT * FROM objectives;"
+load_objectives connection = unite # Turnover <-|-|- to_zipper . to_list <-|- query_ connection "SELECT * FROM objectives;"
 
 main = do
 	connection <- open "facts.db"

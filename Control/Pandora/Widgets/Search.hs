@@ -14,11 +14,9 @@ import "sqlite-simple" Database.SQLite.Simple (Connection, Only (Only), query)
 
 import Control.Pandora.Entity.Objective (Objective)
 import Control.Pandora.SQLite ()
-import Control.Pandora.Widgets.Components.Picker (move)
+import Control.Pandora.Widgets.Components.Picker (Picker, move)
 import Control.Pandora.TUI (refresh_terminal, focused, record)
 import Control.Pandora.Utils (keystroke, to_list, to_zipper, letter_to_char)
-
-type Picker = Tape List
 
 type Texture = (List Letter :*: Maybe # Picker Objective) :+: Flip (:*:) # Maybe (Picker Objective) # List Letter
 
@@ -32,7 +30,7 @@ handle (Control VT) = choose_objective =<< current @Texture
 handle key = update_objectives_list key =<< current @Texture
 
 choose_objective :: Texture -> Search ()
-choose_objective (Option (filter :*: Just picker)) = failure # extract picker
+choose_objective (Option (filter :*: Just (Turnover picker))) = failure # extract picker
 choose_objective _ = point ()
 
 update_objectives_list :: ASCII -> Texture -> Search ()
@@ -66,7 +64,7 @@ display_filter focus filter = void ! do
 	putStrLn "\ESC[0m" .-*- putStrLn "" .-*- (putChar . letter_to_char <<- Reverse filter)
 
 display_picker :: Boolean -> Picker Objective -> IO ()
-display_picker focus objectives = void ! do
+display_picker focus (Turnover objectives) = void ! do
 	putStrLn . record . show <<-<<- (Reverse <-|- view (sub @Left) objectives)
 	putStrLn . (focus ? focused ! record) . show <<-<<- view (sub @Root) objectives
 	putStrLn . record . show <<-<<- view (sub @Right) objectives
@@ -79,7 +77,7 @@ keypress = resolve @ASCII point keypress =<< run keystroke
 
 reload_objectives_by_filter :: Connection -> List Letter -> IO :. Maybe :. Picker := Objective
 reload_objectives_by_filter connection pattern = let substring = reverse . show ! letter_to_char <-|- pattern in
-	to_zipper . to_list <-|- query connection "SELECT * FROM objectives WHERE title LIKE '%' || ? || '%';" (Only substring)
+	Turnover <-|-|- to_zipper . to_list <-|- query connection "SELECT * FROM objectives WHERE title LIKE '%' || ? || '%';" (Only substring)
 
 run_search :: Connection -> IO Objective
 run_search connection = do

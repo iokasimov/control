@@ -7,7 +7,7 @@ import "pandora" Pandora.Paradigm
 import "pandora" Pandora.Pattern
 import "pandora-io" Pandora.IO
 
-type Picker = Tape List
+type Picker = Turnover (Tape List)
 
-move :: forall direction . Morphed # Rotate direction # Picker # Maybe <::> Picker => Picker ~> Picker
-move z = resolve @(Picker _) identity z # run (rotate @direction z)
+move :: forall direction . Morphed # Rotate direction # Picker # Picker => Picker ~> Picker
+move z = rotate @direction z
