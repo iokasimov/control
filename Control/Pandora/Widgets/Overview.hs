@@ -39,14 +39,14 @@ display (timeline :*: timesheet :*: Just (Turnover tasks)) = void ! do
 	putStrLn . heading . line . underlined ! "Timesheet for today"
 	putStrLn . line . show <<- timesheet
 	putStrLn . heading . line . underlined ! "Tasks for today"
-	putStrLn . record . show <<-<<- view (sub @Left) tasks
-	putStrLn . focused . show <<-<<- view (sub @Root) tasks
-	putStrLn . record . show <<-<<- view (sub @Right) tasks
+	putStrLn . record . show <<- get @(Convex Lens) <-- sub @Left <-- tasks
+	putStrLn . focused . show <<- get @(Convex Lens) <-- sub @Root <-- tasks
+	putStrLn . record . show <<- get @(Convex Lens) <-- sub @Right <-- tasks
 
 handle :: ASCII -> TUI ()
-handle (Letter Lower R) = void ! replace @Overview =<< adapt . load_overview_facts =<< provided @Connection
-handle (Letter Lower J) = adapt @TUI . void ! zoom @Overview @_ @(State Overview) # perhaps @(Picker Task) # overlook (modify @(Picker Task) (rotate @Right))
-handle (Letter Lower K) = adapt @TUI . void ! zoom @Overview @_ @(State Overview) # perhaps @(Picker Task) # overlook (modify @(Picker Task) (rotate @Left))
+handle (Letter Lower R) = void ! adapt . set @State =<< adapt . load_overview_facts =<< provided @Connection
+handle (Letter Lower J) = void <----- zoom <---- perhaps @(Picker Task) @Overview <---- overlook <--- modify @State @(Picker Task) <-- rotate @Right
+handle (Letter Lower K) = void <----- zoom <---- perhaps @(Picker Task) @Overview <---- overlook <--- modify @State @(Picker Task) <-- rotate @Left
 handle (Letter Upper G) = pass .-+- (change_status_in_db .-*-*- adapt . confirmation) GONE
 handle (Letter Upper T) = pass .-+- (change_status_in_db .-*-*- adapt . confirmation) TODO
 handle (Letter Upper D) = pass .-+- (change_status_in_db .-*-*- adapt . confirmation) DONE
@@ -59,11 +59,11 @@ insert_new_event :: Connection -> Objective -> TUI ()
 insert_new_event connection = adapt . execute connection start_objective_event . Only . attached
 
 finish_all_events :: Connection -> TUI ()
-finish_all_events connection = adapt # execute_ connection stop_all_objective_events
+finish_all_events connection = adapt <-- execute_ connection stop_all_objective_events
 
 shift_task :: TUI ()
 shift_task = identity =<< shift_task_row <-|- provided @Connection
-	<-*- (adapt =<< zoom @Overview # perhaps @(Picker Task) >>> sub @Root >>> access @Task >>> access @(ID ()) # overlook current)
+	<-*- (adapt =<< zoom <--- perhaps @(Picker Task) @Overview >>> sub @Root >>> access @Task >>> access @(ID ()) <--- get @State)
 	<-*- adapt (shift_unit =<< keystroke .-*- message) where
 
 	shift_unit :: ASCII -> Maybe :> IO := Int
@@ -77,7 +77,7 @@ shift_task = identity =<< shift_task_row <-|- provided @Connection
 		! "Choose a time unit to shift the task on. (Hour/Day/Week)"
 
 	shift_task_row :: Connection -> ID () -> Int -> TUI ()
-	shift_task_row connection id shift = adapt # execute
+	shift_task_row connection id shift = adapt <-- execute
 		connection shift_task_bounds (shift, shift, id)
 
 confirmation :: Status -> Maybe :> IO := ()
@@ -90,20 +90,20 @@ confirmation new = recognize =<< keystroke .-*- message where
 
 	message :: Maybe :> IO := ()
 	message = adapt . putStrLn . heading . line . negative
-		! "Are you sure you want to mark this task as [" + show new + "]? (Yes/No)"
+		-------> "Are you sure you want to mark this task as [" + show new + "]? (Yes/No)"
 
 -- Before we update row in DB, new status should already be set
 -- It would be better if we just get status and ID for the task right from zoomed state
 change_status_in_db :: Status -> TUI ()
 change_status_in_db new = identity =<< update_task_row <-|- provided @Connection
-	<-*- (adapt =<< zoom @Overview # perhaps @(Picker Task) >>> sub @Root >>> access @Task >>> access @(ID ()) # overlook current)
-	<-*- (adapt =<< zoom @Overview # perhaps @(Picker Task) >>> sub @Root >>> access @Task >>> access @Status # overlook (replace new)) where
+	<-*- (adapt =<< zoom <--- perhaps @(Picker Task) @Overview >>> sub @Root >>> access @Task >>> access @(ID ()) <--- get @State)
+	<-*- (adapt =<< zoom <--- perhaps @(Picker Task) @Overview >>> sub @Root >>> access @Task >>> access @Status <--- overlook <-- set @State new) where
 
 	update_task_row :: Connection -> ID () -> Status -> TUI ()
-	update_task_row connection id status = adapt # execute connection update_task_status (status, unid id)
+	update_task_row connection id status = adapt <-- execute connection update_task_status (status, unid id)
 
 run_overview :: TUI ()
-run_overview = forever_ ! handle =<< adapt keystroke .-*- (adapt . display =<< current)
+run_overview = forever_ ! handle =<< adapt keystroke .-*- (adapt . display =<< adapt <-- get @State)
 
 load_overview_facts :: Connection -> IO Overview
 load_overview_facts connection = (\timeline timeshet tasks -> timeline :*: timeshet :*: tasks)
@@ -112,4 +112,4 @@ load_overview_facts connection = (\timeline timeshet tasks -> timeline :*: times
 	<-*- (Turnover <-|-|- to_zipper . to_list <-|- query_ connection today_tasks)
 
 load_objectives :: Connection -> Maybe :> IO := Picker Objective
-load_objectives connection = unite # Turnover <-|-|- to_zipper . to_list <-|- query_ connection "SELECT * FROM objectives;"
+load_objectives connection = unite <--------- Turnover <-|-|- to_zipper . to_list <-|- query_ connection "SELECT * FROM objectives;"

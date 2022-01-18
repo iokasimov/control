@@ -35,6 +35,7 @@ executable todo
     Control.Pandora.Entity.ID
     Control.Pandora.Widgets.Components.Picker
     Control.Pandora.Widgets.Search
+    Control.Pandora.Widgets.Overview
     Control.Pandora.SQLite
     Control.Pandora.TUI
     Control.Pandora.Utils
