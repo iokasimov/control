@@ -12,7 +12,8 @@ import Control.Pandora.Widgets.Overview (run_overview, load_overview_facts)
 import Control.Pandora.TUI (prepare_terminal)
 
 main = do
-	connection <- open "facts.db"
+	-- TODO: put path to a database file into configuration
+	connection <- open "/Users/iokasimov/Dropbox/facts.db"
 	prepare_terminal
 	facts <- load_overview_facts connection
 	run (run_overview ! connection ! facts)
