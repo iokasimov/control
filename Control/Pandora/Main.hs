@@ -16,4 +16,4 @@ main = do
 	connection <- open "/Users/iokasimov/Dropbox/facts.db"
 	prepare_terminal
 	facts <- load_overview_facts connection
-	run (run_overview ! connection ! facts)
+	run <-- run_overview <~ connection <~ facts

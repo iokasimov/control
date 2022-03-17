@@ -11,19 +11,19 @@ category:            cli
 build-type:          Simple
 cabal-version:       >= 1.10
 
-executable tracker
-  main-is: Tracker.hs
-  other-modules: Control.Objective, Control.SQL.Query, Control.Interface.REPL, Control.Interface.TUI
-  build-depends: base == 4.*, joint, transformers, text, time, sqlite-simple, haskeline, ansi-terminal, pretty-terminal, vty
-  default-extensions: FlexibleInstances, LambdaCase, OverloadedStrings, TypeApplications, TypeOperators, PackageImports
-  ghc-options: -Wall -fno-warn-tabs -threaded
-
-executable checklist
-  main-is: Checklist.hs
-  other-modules: Control.Objective, Control.SQL.Query, Control.Interface.REPL, Control.Interface.TUI
-  build-depends: base == 4.*, joint, transformers, text, time, sqlite-simple, haskeline, ansi-terminal, pretty-terminal, vty
-  default-extensions: FlexibleInstances, LambdaCase, OverloadedStrings, TypeApplications, TypeOperators, PackageImports
-  ghc-options: -Wall -fno-warn-tabs -threaded
+-- executable tracker
+--   main-is: Tracker.hs
+--   other-modules: Control.Objective, Control.SQL.Query, Control.Interface.REPL, Control.Interface.TUI
+--   build-depends: base == 4.*, joint, transformers, text, time, sqlite-simple, haskeline, ansi-terminal, pretty-terminal, vty
+--   default-extensions: FlexibleInstances, LambdaCase, OverloadedStrings, TypeApplications, TypeOperators, PackageImports
+--   ghc-options: -Wall -fno-warn-tabs -threaded
+--
+-- executable checklist
+--   main-is: Checklist.hs
+--   other-modules: Control.Objective, Control.SQL.Query, Control.Interface.REPL, Control.Interface.TUI
+--   build-depends: base == 4.*, joint, transformers, text, time, sqlite-simple, haskeline, ansi-terminal, pretty-terminal, vty
+--   default-extensions: FlexibleInstances, LambdaCase, OverloadedStrings, TypeApplications, TypeOperators, PackageImports
+--   ghc-options: -Wall -fno-warn-tabs -threaded
 
 executable todo
   main-is: Control/Pandora/Main.hs
