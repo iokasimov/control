@@ -15,7 +15,8 @@ import Control.Entity.ID (ID (ID))
 import Control.Entity.Objective (Objective)
 import Control.Entity.Amount (Amount)
 import Control.Entity.Event (Event)
-import Control.Entity.Task (Task, Status (TODO, DONE, GONE, LATE))
+import Control.Entity.Status (Status (TODO, DONE, GONE, LATE))
+import Control.Entity.Task (Task)
 
 instance FromField (ID e) where
 	fromField (Field (SQLInteger i) _) = pure . ID . fromInteger $ toInteger i
