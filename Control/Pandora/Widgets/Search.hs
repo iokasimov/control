@@ -26,8 +26,8 @@ handle :: ASCII -> Search ()
 handle (Control HT) = void . adapt . modify @State @Texture <-- \case
 	Option picker -> Adoption <-- Flip picker
 	Adoption (Flip searcher) -> Option searcher
-handle (Control VT) = choose_objective ===<< adapt <-- get @State
-handle key = update_objectives_list key ===<< adapt <-- get @State
+handle (Control VT) = choose_objective =<< current @Texture
+handle key = update_objectives_list key =<< current @Texture
 
 choose_objective :: Texture -> Search ()
 choose_objective (Option (filter :*: Just (Turnover picker))) = failure <-- extract picker
@@ -67,21 +67,22 @@ display_filter :: Boolean -> List Letter -> IO ()
 display_filter focus filter = void <-- do
 	putStrLn "" .-*- refresh_terminal
 	putStr <--- (focus ?= True <-- focused <-- record) "Search: \ESC[7m"
-	putStrLn "\ESC[0m" .-*- putStrLn "" .-*- (putChar . letter_to_char <<-- Reverse filter)
+	putStrLn "\ESC[0m" .-*- putStrLn "" .-*- (putChar . letter_to_char <-/-- Reverse filter)
 
 display_picker :: Boolean -> Picker Objective -> IO ()
 display_picker focus (Turnover objectives) = void <-- do
-	putStrLn . record . show <<--- view <-- sub @Left <-- objectives
-	putStrLn . (focus ?= True <-- focused <-- record) . show <<--- get @(Convex Lens) <-- sub @Root <-- objectives
-	putStrLn . record . show <<--- view <-- sub @Right <-- objectives
+	putStrLn . record . show <-/-- view <--- sub @(Left Branch) <--- view <-- sub @Rest <-- objectives
+	putStrLn . (focus ?= True <-- focused <-- record) . show <-/-- get @(Convex Lens) <-- sub @Root <-- objectives
+	putStrLn . record . show <-/-- view <--- sub @(Right Branch) <--- view <-- sub @Rest <-- objectives
 
 eventloop :: Search ()
-eventloop = loop <------ handle ===<< adapt keypress .-*- (adapt . display ==<< adapt <-- get @State)
+eventloop = loop <----- handle ===<< adapt keypress
+	.-*- adapt . display =<< current @Texture
 
 keypress :: IO ASCII
 keypress = resolve @ASCII point keypress =<< run keystroke
 
-reload_objectives_by_filter :: Connection -> List Letter -> IO :. Maybe :. Picker > Objective
+reload_objectives_by_filter :: Connection -> List Letter -> IO :. Maybe :. Picker >>> Objective
 reload_objectives_by_filter connection pattern =
 	let substring = reverse . show <---- letter_to_char <-|- pattern in
 	Turnover <-|-|- to_zipper . to_list <-|- query connection "SELECT * FROM objectives WHERE title LIKE '%' || ? || '%';" (Only substring)

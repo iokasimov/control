@@ -40,10 +40,10 @@ list_to_list ys [] = ys
 to_list :: [a] -> List a
 to_list = list_to_list empty
 
-to_zipper :: List a -> Maybe :. Tape List > a
+to_zipper :: List a -> Maybe :. Tape List >>> a
 to_zipper = run . into @(Tape List)
 
-keystroke :: Maybe :> IO > ASCII
+keystroke :: Maybe :> IO >>> ASCII
 keystroke = unite <---- castASCII <-|- getChar
 
 letter_to_char :: Letter -> Char

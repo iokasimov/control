@@ -61,14 +61,14 @@ shift_task_bounds = "UPDATE tasks SET start = start + ?, stop = stop + ? WHERE i
 today_tasks :: Query
 today_tasks =
 	"SELECT tasks.id, \
-	\CASE WHEN IFNULL(stop <= strftime('%s', 'now'), 0) AND status = 1 THEN -2 ELSE status END, \
+	\CASE WHEN IFNULL(stop <= strftime('%s', 'now'), 0) AND tasks.status = 1 THEN -2 ELSE tasks.status END, \
 	\mode, objective_id, \
 	\CASE WHEN resource_id IS NULL THEN objectives.title ELSE objectives.title || ': ' || resources.title END, \
 	\IFNULL(strftime('%H:%M', start, 'unixepoch', 'localtime'), '.....'), \
 	\IFNULL(strftime('%H:%M', stop, 'unixepoch', 'localtime'), '.....') \
 	\FROM tasks INNER JOIN objectives on tasks.objective_id = objectives.id LEFT JOIN resources ON tasks.resource_id = resources.id \
-	\WHERE IFNULL(start >= " <> start_of_today <> ", 0) AND IFNULL(stop <= " <> end_of_today <> ", 1) OR (status = 1 AND IFNULL(stop <= strftime ('%s', 'now'), 0)) \
-	\ORDER BY status, mode, start;"
+	\WHERE IFNULL(start >= " <> start_of_today <> ", 0) AND IFNULL(stop <= " <> end_of_today <> ", 1) OR (tasks.status = 1 AND IFNULL(stop <= strftime ('%s', 'now'), 0)) \
+	\ORDER BY tasks.status, mode, start;"
 
 today_timeline :: Query
 today_timeline =
@@ -114,10 +114,16 @@ overdue =
 	\ORDER BY start;"
 
 start_objective_event :: Query
-start_objective_event = 
+start_objective_event =
 	"INSERT INTO events (objective_id, start) VALUES (?, strftime('%s', 'now'))"
 
 stop_all_objective_events :: Query
 stop_all_objective_events =
 	"UPDATE events SET stop = strftime('%s', datetime('now')) \
 	\WHERE stop IS NULL"
+
+projects_and_subitems :: Query
+projects_and_subitems = "select sups.id, sups.title, subs.id, subs.title from \
+    \projects join objectives sups on sups.id = projects.project_id \
+        \join objectives subs on subs.id = projects.subitem_id \
+            \order by project_id, subitem_id;"
