@@ -12,19 +12,19 @@ build-type:          Simple
 cabal-version:       >= 1.10
 
 executable todo
-  main-is: Control/Pandora/Tracker.hs
+  main-is: Control/Interface/Tracker.hs
   other-modules:
-    Control.Pandora.Engine.SQLite
-    Control.Pandora.Entity.Amount
-    Control.Pandora.Entity.Event
-    Control.Pandora.Entity.Objective
-    Control.Pandora.Entity.Task
-    Control.Pandora.Entity.ID
-    Control.Pandora.Widgets.Components.Picker
-    Control.Pandora.Widgets.Search
-    Control.Pandora.Widgets.Overview
-    Control.Pandora.TUI
-    Control.Pandora.Utils
+    Control.Engine.SQLite
+    Control.Entity.Amount
+    Control.Entity.Event
+    Control.Entity.Objective
+    Control.Entity.Task
+    Control.Entity.ID
+    Control.Widgets.Components.Picker
+    Control.Widgets.Search
+    Control.Widgets.Overview
+    Control.TUI
+    Control.Utils
   build-depends: base == 4.*, pandora, pandora-io, sqlite-simple
   default-extensions:
     DataKinds, ConstraintKinds, ExistentialQuantification, GADTs, QuantifiedConstraints, InstanceSigs

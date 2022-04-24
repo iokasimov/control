@@ -1,4 +1,4 @@
-module Control.Pandora.Entity.Amount where
+module Control.Entity.Amount where
 
 import "pandora" Pandora.Paradigm ((:*:) ((:*:)))
 

@@ -1,4 +1,4 @@
-module Control.Pandora.TUI where
+module Control.TUI where
 
 import "base" Data.Bool (Bool (False))
 import "base" Data.Semigroup ((<>))

@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
-module Control.Pandora.Widgets.Search where
+module Control.Widgets.Search where
 
 import "pandora" Pandora.Core
 import "pandora" Pandora.Paradigm
@@ -12,11 +12,11 @@ import "base" Text.Show (show)
 import "base" System.IO (putStrLn, putStr, putChar)
 import "sqlite-simple" Database.SQLite.Simple (Connection, Only (Only), query)
 
-import Control.Pandora.Entity.Objective (Objective)
-import Control.Pandora.Engine.SQLite ()
-import Control.Pandora.Widgets.Components.Picker (Picker)
-import Control.Pandora.TUI (refresh_terminal, focused, record)
-import Control.Pandora.Utils (keystroke, to_list, to_zipper, letter_to_char)
+import Control.Entity.Objective (Objective)
+import Control.Engine.SQLite ()
+import Control.Widgets.Components.Picker (Picker)
+import Control.TUI (refresh_terminal, focused, record)
+import Control.Utils (keystroke, to_list, to_zipper, letter_to_char)
 
 type Texture = (List Letter :*: Maybe (Picker Objective)) :+: Flip (:*:) (Maybe > Picker Objective) (List Letter)
 

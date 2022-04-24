@@ -8,8 +8,8 @@ import "pandora-io" Pandora.IO
 
 import "sqlite-simple" Database.SQLite.Simple (open)
 
-import Control.Pandora.Widgets.Overview (run_overview, load_overview_facts)
-import Control.Pandora.TUI (prepare_terminal)
+import Control.Widgets.Overview (run_overview, load_overview_facts)
+import Control.TUI (prepare_terminal)
 
 main = do
 	-- TODO: put path to a database file into configuration

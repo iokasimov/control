@@ -1,5 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude #-}
-module Control.Pandora.Widgets.Overview where
+module Control.Widgets.Overview where
 
 import "pandora" Pandora.Core
 import "pandora" Pandora.Paradigm
@@ -14,16 +14,16 @@ import "base" Text.Show (show)
 import "base" System.IO (putStrLn, putStr, putChar)
 import "sqlite-simple" Database.SQLite.Simple (Connection, FromRow, Query, Only (Only), open, query_, query, execute, execute_)
 
-import Control.Pandora.Entity.ID (ID (unid))
-import Control.Pandora.Entity.Objective (Objective)
-import Control.Pandora.Entity.Amount (Amount)
-import Control.Pandora.Entity.Event (Event)
-import Control.Pandora.Entity.Task (Task, Status (TODO, DONE, GONE))
-import Control.Pandora.Engine.SQLite (today_timeline, today_tasks, today_timesheet, update_task_status, shift_task_bounds, start_objective_event, stop_all_objective_events)
-import Control.Pandora.Widgets.Search (run_search)
-import Control.Pandora.Widgets.Components.Picker (Picker)
-import Control.Pandora.TUI (prepare_terminal, refresh_terminal, line, focused, record, bold, negative, underlined, heading)
-import Control.Pandora.Utils (keystroke, to_list, to_zipper, letter_to_char)
+import Control.Entity.ID (ID (unid))
+import Control.Entity.Objective (Objective)
+import Control.Entity.Amount (Amount)
+import Control.Entity.Event (Event)
+import Control.Entity.Task (Task, Status (TODO, DONE, GONE))
+import Control.Engine.SQLite (today_timeline, today_tasks, today_timesheet, update_task_status, shift_task_bounds, start_objective_event, stop_all_objective_events)
+import Control.Widgets.Search (run_search)
+import Control.Widgets.Components.Picker (Picker)
+import Control.TUI (prepare_terminal, refresh_terminal, line, focused, record, bold, negative, underlined, heading)
+import Control.Utils (keystroke, to_list, to_zipper, letter_to_char)
 
 type Timeline = List Event
 type Timesheet = List Amount

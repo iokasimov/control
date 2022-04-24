@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE StandaloneDeriving #-}
-module Control.Pandora.Utils where
+module Control.Utils where
 
 import "pandora" Pandora.Core
 import "pandora" Pandora.Paradigm

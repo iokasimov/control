@@ -1,4 +1,4 @@
-module Control.Pandora.Engine.SQLite where
+module Control.Engine.SQLite where
 
 import "pandora" Pandora.Paradigm ((:*:) ((:*:)))
 
@@ -11,11 +11,11 @@ import "sqlite-simple" Database.SQLite.Simple.FromField (FromField (fromField))
 import "sqlite-simple" Database.SQLite.Simple.ToField (ToField (toField))
 import "sqlite-simple" Database.SQLite.Simple.Internal (Field (Field))
 
-import Control.Pandora.Entity.ID (ID (ID))
-import Control.Pandora.Entity.Objective (Objective)
-import Control.Pandora.Entity.Amount (Amount)
-import Control.Pandora.Entity.Event (Event)
-import Control.Pandora.Entity.Task (Task, Status (TODO, DONE, GONE, LATE))
+import Control.Entity.ID (ID (ID))
+import Control.Entity.Objective (Objective)
+import Control.Entity.Amount (Amount)
+import Control.Entity.Event (Event)
+import Control.Entity.Task (Task, Status (TODO, DONE, GONE, LATE))
 
 instance FromField (ID e) where
 	fromField (Field (SQLInteger i) _) = pure . ID . fromInteger $ toInteger i

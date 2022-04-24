@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
-module Control.Pandora.Widgets.Components.Picker where
+module Control.Widgets.Components.Picker where
 
 import "pandora" Pandora.Core
 import "pandora" Pandora.Paradigm

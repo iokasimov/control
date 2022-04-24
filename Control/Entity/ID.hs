@@ -1,4 +1,4 @@
-module Control.Pandora.Entity.ID where
+module Control.Entity.ID where
 
 import "base" Data.Int (Int)
 

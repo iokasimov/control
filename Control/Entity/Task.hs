@@ -1,9 +1,9 @@
-module Control.Pandora.Entity.Task where
+module Control.Entity.Task where
 
 import "pandora" Pandora.Paradigm ((:*:) ((:*:)))
 
-import Control.Pandora.Entity.ID (ID)
-import Control.Pandora.Entity.Objective (Objective)
+import Control.Entity.ID (ID)
+import Control.Entity.Objective (Objective)
 
 type Task = ID () :*: Status :*: Int :*: ID Objective :*: String :*: String :*: String
 

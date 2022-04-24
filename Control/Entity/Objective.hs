@@ -1,10 +1,10 @@
-module Control.Pandora.Entity.Objective where
+module Control.Entity.Objective where
 
 import "base" Data.Int (Int)
 import "base" Data.String (String)
 import "pandora" Pandora.Paradigm ((:*:) ((:*:)))
 
-import Control.Pandora.Entity.ID (ID)
+import Control.Entity.ID (ID)
 
 type Objective = ID () :*: String
 
