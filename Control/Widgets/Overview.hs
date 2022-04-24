@@ -9,7 +9,6 @@ import "pandora-io" Pandora.IO
 import "base" Data.Char (Char)
 import "base" Data.Int (Int)
 import "base" Data.String (String)
-import "base" Data.List (reverse)
 import "base" Text.Show (show)
 import "base" System.IO (putStrLn, putStr, putChar)
 import "sqlite-simple" Database.SQLite.Simple (Connection, FromRow, Query, Only (Only), open, query_, query, execute, execute_)

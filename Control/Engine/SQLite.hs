@@ -16,6 +16,7 @@ import Control.Entity.Objective (Objective)
 import Control.Entity.Amount (Amount)
 import Control.Entity.Event (Event)
 import Control.Entity.Status (Status (TODO, DONE, GONE, LATE))
+import Control.Entity.Resource (Resource)
 import Control.Entity.Task (Task)
 
 instance FromField (ID e) where
@@ -46,6 +47,10 @@ instance FromRow Task where
 
 instance FromRow Event where
 	fromRow = (\title start stop total -> title :*: start :*: stop :*: total)
+		<$> field <*> field <*> field <*> field
+
+instance FromRow Resource where
+	fromRow = (\status title link tags -> status :*: title :*: link :*: tags)
 		<$> field <*> field <*> field <*> field
 
 instance FromRow Amount where
@@ -133,3 +138,11 @@ start_of_today = "(strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') 
 start_of_tomorrow = "(strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) + 86400"
 end_of_today = "(strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) + 86399"
 end_of_tomorrow = "(strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) + 86400 + 86399"
+
+-- TODO: test this query on content that is not tagged
+all_todo_content :: Query
+all_todo_content =
+	"SELECT content.status, content.title, content.link, group_concat(tags.title) FROM tagged \
+	\JOIN content ON tagged.content = content.id \
+	\JOIN tags ON tagged.tag = tags.id \
+	\GROUP BY content.title"

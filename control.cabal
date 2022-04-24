@@ -20,13 +20,39 @@ executable todo
     Control.Entity.Objective
     Control.Entity.Status
     Control.Entity.Task
+    Control.Entity.Resource
     Control.Entity.ID
     Control.Widgets.Components.Picker
     Control.Widgets.Search
     Control.Widgets.Overview
     Control.TUI
     Control.Utils
-  build-depends: base == 4.*, pandora, pandora-io, sqlite-simple
+  build-depends: base == 4.*, pandora, pandora-io, sqlite-simple, split
+  default-extensions:
+    DataKinds, ConstraintKinds, ExistentialQuantification, GADTs, QuantifiedConstraints, InstanceSigs
+    FlexibleContexts, FlexibleInstances, KindSignatures, StandaloneKindSignatures, LiberalTypeSynonyms, LambdaCase, FunctionalDependencies
+    MultiParamTypeClasses, PackageImports, PolyKinds, RankNTypes, ViewPatterns, OverloadedStrings
+    ScopedTypeVariables, TypeApplications, TypeFamilies, TypeFamilyDependencies, TypeOperators
+  ghc-options: -Wall -fno-warn-tabs -threaded -fprint-potential-instances
+
+
+executable content
+  main-is: Control/Interface/Resources.hs
+  other-modules:
+    Control.Engine.SQLite
+    Control.Entity.Amount
+    Control.Entity.Event
+    Control.Entity.Objective
+    Control.Entity.Status
+    Control.Entity.Task
+    Control.Entity.Resource
+    Control.Entity.ID
+    Control.Widgets.Components.Picker
+    Control.Widgets.Search
+    Control.Widgets.Overview
+    Control.TUI
+    Control.Utils
+  build-depends: base == 4.*, pandora, pandora-io, sqlite-simple, split
   default-extensions:
     DataKinds, ConstraintKinds, ExistentialQuantification, GADTs, QuantifiedConstraints, InstanceSigs
     FlexibleContexts, FlexibleInstances, KindSignatures, StandaloneKindSignatures, LiberalTypeSynonyms, LambdaCase, FunctionalDependencies
