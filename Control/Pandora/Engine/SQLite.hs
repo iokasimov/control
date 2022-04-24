@@ -1,4 +1,4 @@
-module Control.Pandora.SQLite where
+module Control.Pandora.Engine.SQLite where
 
 import "pandora" Pandora.Paradigm ((:*:) ((:*:)))
 
@@ -16,7 +16,6 @@ import Control.Pandora.Entity.Objective (Objective)
 import Control.Pandora.Entity.Amount (Amount)
 import Control.Pandora.Entity.Event (Event)
 import Control.Pandora.Entity.Task (Task, Status (TODO, DONE, GONE, LATE))
-import Control.SQL.Query (start_of_today, end_of_today, start_of_tomorrow, end_of_tomorrow)
 
 instance FromField (ID e) where
 	fromField (Field (SQLInteger i) _) = pure . ID . fromInteger $ toInteger i
@@ -127,3 +126,9 @@ projects_and_subitems = "select sups.id, sups.title, subs.id, subs.title from \
     \projects join objectives sups on sups.id = projects.project_id \
         \join objectives subs on subs.id = projects.subitem_id \
             \order by project_id, subitem_id;"
+
+start_of_today, start_of_tomorrow, end_of_today, end_of_tomorrow :: Query
+start_of_today = "(strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400))"
+start_of_tomorrow = "(strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) + 86400"
+end_of_today = "(strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) + 86399"
+end_of_tomorrow = "(strftime ('%s', 'now') - (strftime('%s', 'now', 'localtime') % 86400)) + 86400 + 86399"

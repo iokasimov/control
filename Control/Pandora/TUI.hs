@@ -27,4 +27,3 @@ heading text = "\n" <> text <> "\n"
 line text = "    " <> text
 focused text = " => " <> bold text
 record text = "    " <> text
-

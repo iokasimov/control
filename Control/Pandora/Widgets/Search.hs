@@ -13,7 +13,7 @@ import "base" System.IO (putStrLn, putStr, putChar)
 import "sqlite-simple" Database.SQLite.Simple (Connection, Only (Only), query)
 
 import Control.Pandora.Entity.Objective (Objective)
-import Control.Pandora.SQLite ()
+import Control.Pandora.Engine.SQLite ()
 import Control.Pandora.Widgets.Components.Picker (Picker)
 import Control.Pandora.TUI (refresh_terminal, focused, record)
 import Control.Pandora.Utils (keystroke, to_list, to_zipper, letter_to_char)

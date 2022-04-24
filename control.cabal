@@ -11,23 +11,10 @@ category:            cli
 build-type:          Simple
 cabal-version:       >= 1.10
 
--- executable tracker
---   main-is: Tracker.hs
---   other-modules: Control.Objective, Control.SQL.Query, Control.Interface.REPL, Control.Interface.TUI
---   build-depends: base == 4.*, joint, transformers, text, time, sqlite-simple, haskeline, ansi-terminal, pretty-terminal, vty
---   default-extensions: FlexibleInstances, LambdaCase, OverloadedStrings, TypeApplications, TypeOperators, PackageImports
---   ghc-options: -Wall -fno-warn-tabs -threaded
---
--- executable checklist
---   main-is: Checklist.hs
---   other-modules: Control.Objective, Control.SQL.Query, Control.Interface.REPL, Control.Interface.TUI
---   build-depends: base == 4.*, joint, transformers, text, time, sqlite-simple, haskeline, ansi-terminal, pretty-terminal, vty
---   default-extensions: FlexibleInstances, LambdaCase, OverloadedStrings, TypeApplications, TypeOperators, PackageImports
---   ghc-options: -Wall -fno-warn-tabs -threaded
-
 executable todo
-  main-is: Control/Pandora/Main.hs
+  main-is: Control/Pandora/Tracker.hs
   other-modules:
+    Control.Pandora.Engine.SQLite
     Control.Pandora.Entity.Amount
     Control.Pandora.Entity.Event
     Control.Pandora.Entity.Objective
@@ -36,7 +23,6 @@ executable todo
     Control.Pandora.Widgets.Components.Picker
     Control.Pandora.Widgets.Search
     Control.Pandora.Widgets.Overview
-    Control.Pandora.SQLite
     Control.Pandora.TUI
     Control.Pandora.Utils
   build-depends: base == 4.*, pandora, pandora-io, sqlite-simple
