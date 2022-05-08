@@ -36,7 +36,8 @@ choose_objective _ = point ()
 update_objectives_list :: ASCII -> Texture -> Search ()
 update_objectives_list key (Option (filter :*: picker)) = void . adapt . set @State @Texture . Option <--- filter :*: (change_picker key <-|- picker)
 update_objectives_list key (Adoption (Flip (filter :*: _))) = let new = change_filter key filter in
-	void . adapt . set @State @Texture . Adoption . Flip . (new :*:) ===<< identity ===<< (adapt . (reload_objectives_by_filter % new)) <-|- provided @Connection
+	void . adapt . set @State @Texture . Adoption . Flip . (new :*:) 
+		===<< identity ===<< (adapt . (reload_objectives_by_filter % new)) <-|- provided @Connection
 
 -- TODO: think about caching with prefixed tree where key is a searching pattern
 change_filter :: ASCII -> List Letter -> List Letter
@@ -50,34 +51,35 @@ change_picker (Letter Lower K) = rotate @Left
 change_picker _ = identity
 
 display :: Texture -> IO ()
-display (Option (filter :*: picker)) = void <---- do
-	(resolve @(Picker Objective)
-		<--- display_picker True
-		<--- putStrLn --> record "No objectives found"
-		<--- picker)
-	.-*- display_filter False filter
-display (Adoption (Flip (filter :*: picker))) = void <----
-	(resolve @(Picker Objective)
-		<--- display_picker False
-		<--- putStrLn <-- record "No objectives found"
-		<--- picker)
-	.-*- display_filter True filter
+display (Option (filter :*: picker)) = void 
+	<----- display_filter False filter
+		----* (resolve @(Picker Objective)
+			<--- display_picker True
+			<--- putStrLn --> record "No objectives found"
+			<--- picker)
+display (Adoption (Flip (filter :*: picker))) = void 
+	<----- display_filter True filter
+		----* resolve @(Picker Objective)
+			<--- display_picker False
+			<--- putStrLn <-- record "No objectives found"
+			<--- picker
 
 display_filter :: Boolean -> List Letter -> IO ()
 display_filter focus filter = void <-- do
-	putStrLn "" .-*- refresh_terminal
+	refresh_terminal -* putStrLn ""
 	putStr <--- (focus ?= True <-- focused <-- record) "Search: \ESC[7m"
-	putStrLn "\ESC[0m" .-*- putStrLn "" .-*- (putChar . letter_to_char <-/-- Reverse filter)
+	(putChar . letter_to_char <-/-- Reverse filter) -* putStrLn "" -* putStrLn "\ESC[0m"
 
 display_picker :: Boolean -> Picker Objective -> IO ()
 display_picker focus (Turnover objectives) = void <-- do
-	putStrLn . record . show <-/-- view <--- sub @(Left Branch) <--- view <-- sub @Rest <-- objectives
+	putStrLn . record . show <-/-- view <--- sub @Left <--- view <-- sub @Rest <-- objectives
 	putStrLn . (focus ?= True <-- focused <-- record) . show <-/-- get @(Convex Lens) <-- sub @Root <-- objectives
-	putStrLn . record . show <-/-- view <--- sub @(Right Branch) <--- view <-- sub @Rest <-- objectives
+	putStrLn . record . show <-/-- view <--- sub @Right <--- view <-- sub @Rest <-- objectives
 
 eventloop :: Search ()
-eventloop = loop <----- handle ===<< adapt keypress
-	.-*- adapt . display =<< current @Texture
+eventloop = loop <----- handle 
+	===<< adapt . display =<< current @Texture 
+		---* adapt keypress
 
 keypress :: IO ASCII
 keypress = resolve @ASCII point keypress =<< run keystroke

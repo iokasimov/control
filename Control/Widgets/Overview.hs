@@ -39,9 +39,9 @@ display (timeline :*: timesheet :*: Just (Turnover tasks)) = void <-- do
 	putStrLn . heading . line . underlined <-- "Timesheet for today"
 	putStrLn . line . show <-/- timesheet
 	putStrLn . heading . line . underlined <-- "Tasks for today"
-	putStrLn . record . show <-/-- view <--- sub @(Left Branch) <--- view <-- sub @Rest <-- tasks
+	putStrLn . record . show <-/-- view <--- sub @Left <--- view <-- sub @Rest <-- tasks
 	putStrLn . focused . show <-/- view <-- sub @Root <-- tasks
-	putStrLn . record . show <-/-- view <--- sub @(Right Branch) <--- view <-- sub @Rest <-- tasks
+	putStrLn . record . show <-/-- view <--- sub @Right <--- view <-- sub @Rest <-- tasks
 
 -- Here is the question: how to adapt `State ls :> Maybe` to `State bg :> Maybe`?
 
@@ -53,13 +53,14 @@ handle (Letter Lower J) = adapt . void <----- zoom
 handle (Letter Lower K) = adapt . void <----- zoom
 	<---- perhaps @(Picker Task) @Overview
 	<---- overlook <--- modify @State @(Picker Task) <-- rotate @Left
-handle (Letter Upper G) = pass -+- (change_status_in_db .-*-*- adapt . confirmation) GONE
-handle (Letter Upper T) = pass -+- (change_status_in_db .-*-*- adapt . confirmation) TODO
-handle (Letter Upper D) = pass -+- (change_status_in_db .-*-*- adapt . confirmation) DONE
-handle (Letter Upper I) = handle (Letter Lower R)
-	.-*--- identity ===<< insert_new_event
+handle (Letter Upper G) = pass -+- (change_status_in_db -*-*- adapt . confirmation) GONE
+handle (Letter Upper T) = pass -+- (change_status_in_db -*-*- adapt . confirmation) TODO
+handle (Letter Upper D) = pass -+- (change_status_in_db -*-*- adapt . confirmation) DONE
+handle (Letter Upper I) =
+	identity ===<< insert_new_event
 		<-|- provided @Connection
 		<-*- adapt . run_search =<< provided @Connection
+	-----* handle (Letter Lower R)
 handle (Letter Upper O) = identity ===<< finish_all_events <-|- provided @Connection
 handle (Letter Upper S) = pass -+- shift_task
 handle _ = point ()
@@ -78,8 +79,7 @@ shift_task = identity ======<< shift_task_row
 	<-*---- adapt ====<< adapt <---- zoom @Overview
 		<--- perhaps @(Picker Task) >>> sub @Root >>> access @(ID ())
 		<--- overlook <-- current @(ID ())
-	<-*---- adapt <----- shift_unit
-		===<< keystroke .-*- message where
+	<-*---- adapt <--- shift_unit =<< message -* keystroke where
 
 	shift_unit :: ASCII -> Maybe :> IO >>> Int
 	shift_unit (Letter Upper H) = point 3600
@@ -96,7 +96,7 @@ shift_task = identity ======<< shift_task_row
 		connection shift_task_bounds (shift, shift, id)
 
 confirmation :: Status -> Maybe :> IO >>> ()
-confirmation new = recognize =<< keystroke .-*- message where
+confirmation new = message ----* recognize =<< keystroke where
 
 	recognize :: ASCII -> Maybe :> IO >>> ()
 	recognize (Letter Upper N) = nothing
@@ -108,11 +108,13 @@ confirmation new = recognize =<< keystroke .-*- message where
 		<-- "Are you sure you want to mark this task as [" + show new + "]? (Yes/No)"
 
 -- Before we update row in DB, new status should already be set
--- It would be better if we just get status and ID for the task right from zoomed state
+-- It world be better if we just get status and ID for the task right from zoomed state
+-- It also would be nice if we could somehow tie State and DB interface so that if we update 
+-- a row in state, it would be udatd in DB as well, maybe via ID primary key
 change_status_in_db :: Status -> TUI ()
 change_status_in_db new = identity ===<< update_task_row <-|- provided @Connection
-	<-*- (adapt ====<< adapt <---- zoom <--- perhaps @(Picker Task) @Overview >>> sub @Root >>> access @(ID ()) <--- get @State)
-	<-*- (adapt ====<< adapt <---- zoom <--- perhaps @(Picker Task) @Overview >>> sub @Root >>> access @Status <--- overlook <-- set @State new) where
+	<-*- (adapt ====<< adapt <---- zoom @Overview <--- perhaps @(Picker Task) >>> sub @Root >>> access @(ID ()) <--- overlook <-- current @(ID ()))
+	<-*- (adapt ====<< adapt <---- zoom @Overview <--- perhaps @(Picker Task) >>> sub @Root >>> access @Status <--- overlook <-- (constant new <-|- change @Status (constant new))) where
 
 	update_task_row :: Connection -> ID () -> Status -> TUI ()
 	update_task_row connection id status = adapt
@@ -120,8 +122,8 @@ change_status_in_db new = identity ===<< update_task_row <-|- provided @Connecti
 
 run_overview :: TUI ()
 run_overview = loop
-	<---- handle =<< adapt keystroke
-		.-*- adapt . display =<< current @Overview
+	<---- adapt . display =<< current @Overview
+		---* handle =<< adapt keystroke
 
 load_overview_facts :: Connection -> IO Overview
 load_overview_facts connection = (\timeline timeshet tasks -> timeline :*: timeshet :*: tasks)

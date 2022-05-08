@@ -2,7 +2,7 @@ module Control.TUI where
 
 import "base" Data.Bool (Bool (False))
 import "base" Data.Semigroup ((<>))
-import "base" System.IO (BufferMode (NoBuffering), hSetBuffering, hSetEcho, putStr, putStrLn, stdin)
+import "base" System.IO (BufferMode (NoBuffering), hSetBuffering, hSetEcho, hFlush, putStr, putStrLn, stdin, stdout)
 
 prepare_terminal = do
 	hSetBuffering stdin NoBuffering
@@ -12,6 +12,11 @@ prepare_terminal = do
 refresh_terminal = do
 	clear_terminal
 	up_cursor
+
+prompt line = do
+	hSetBuffering stdin NoBuffering
+	hFlush stdout
+	putStr line
 
 clear_terminal = putStr "\ESC[2J"
 up_cursor = putStr "\ESC[100A"

@@ -35,7 +35,6 @@ executable todo
     ScopedTypeVariables, TypeApplications, TypeFamilies, TypeFamilyDependencies, TypeOperators
   ghc-options: -Wall -fno-warn-tabs -threaded -fprint-potential-instances
 
-
 executable content
   main-is: Control/Interface/Resources.hs
   other-modules:
