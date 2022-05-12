@@ -60,7 +60,7 @@ handle (Letter Upper I) =
 	identity ===<< insert_new_event
 		<-|- provided @Connection
 		<-*- adapt . run_search =<< provided @Connection
-	-----* handle (Letter Lower R)
+	-----* handle <-- Letter Lower R
 handle (Letter Upper O) = identity ===<< finish_all_events <-|- provided @Connection
 handle (Letter Upper S) = pass -+- shift_task
 handle _ = point ()

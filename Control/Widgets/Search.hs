@@ -18,26 +18,49 @@ import Control.Widgets.Components.Picker (Picker)
 import Control.TUI (refresh_terminal, focused, record)
 import Control.Utils (keystroke, to_list, to_zipper, letter_to_char)
 
-type Texture = (List Letter :*: Maybe (Picker Objective)) :+: Flip (:*:) (Maybe > Picker Objective) (List Letter)
+-- Why do we need to store either a pair or a flipped pair?
+-- To undersand, which component is focused now
+-- It would be nice to use some nice wrapper here
+--type Texture = (List Letter :*: Maybe (Picker Objective)) 
+	-- -:+: Flip (:*:) (Maybe > Picker Objective) (List Letter)
 
-type Search = Provision Connection :> State Texture :> Conclusion Objective :> IO
+-- Two alternatives:
+-- List Letter :*: Focused (Maybe (Picker Objective))
+-- Focused (List Letter) :*: Maybe (Picker Objective)
+
+type Filter = List Letter
+type Result = Maybe > Picker Objective
+
+type (:+*+:) l r = (l :+: r) :*: (r :+: l)
+
+type (:*+*:) l r = (l :*: r) :+: (r :*: l)
+
+switch :: l :*+*: r -> l :*+*: r
+switch (Option (l :*: r)) = Adoption (r :*: l)
+switch (Adoption (r :*: l)) = Option (l :*: r)
+
+type Texture' = Filter :*+*: Result
+type Search = Provision Connection :> State Texture' :> Conclusion Objective :> IO
 
 handle :: ASCII -> Search ()
-handle (Control HT) = void . adapt . modify @State @Texture <-- \case
-	Option picker -> Adoption <-- Flip picker
-	Adoption (Flip searcher) -> Option searcher
-handle (Control VT) = choose_objective =<< current @Texture
-handle key = update_objectives_list key =<< current @Texture
+handle (Control HT) = void <-- change @Texture' switch
+handle (Control VT) = choose_objective =<< current @Texture'
+handle key = update_objectives_list key =<< current @Texture'
 
-choose_objective :: Texture -> Search ()
+choose_objective :: Texture' -> Search ()
 choose_objective (Option (filter :*: Just (Turnover picker))) = failure <-- extract picker
 choose_objective _ = point ()
 
-update_objectives_list :: ASCII -> Texture -> Search ()
-update_objectives_list key (Option (filter :*: picker)) = void . adapt . set @State @Texture . Option <--- filter :*: (change_picker key <-|- picker)
-update_objectives_list key (Adoption (Flip (filter :*: _))) = let new = change_filter key filter in
-	void . adapt . set @State @Texture . Adoption . Flip . (new :*:) 
-		===<< identity ===<< (adapt . (reload_objectives_by_filter % new)) <-|- provided @Connection
+-- TODO: this code is completely mess, we need to refactor it
+-- cause I have hard time to understand its logic
+update_objectives_list :: ASCII -> Texture' -> Search ()
+update_objectives_list key (Option (filter :*: picker)) = 
+	void . change @Texture' . constant . Option
+		<--- filter :*: (change_picker key <-|- picker)
+update_objectives_list key (Adoption (_ :*: filter)) =
+	let new = change_filter key filter in
+	void . change @Texture' . constant . Adoption . (:*: new)
+		===<< identity ===<< adapt . (reload_objectives_by_filter % new) <-|- provided @Connection
 
 -- TODO: think about caching with prefixed tree where key is a searching pattern
 change_filter :: ASCII -> List Letter -> List Letter
@@ -50,14 +73,14 @@ change_picker (Letter Lower J) = rotate @Right
 change_picker (Letter Lower K) = rotate @Left
 change_picker _ = identity
 
-display :: Texture -> IO ()
+display :: Texture' -> IO ()
 display (Option (filter :*: picker)) = void 
 	<----- display_filter False filter
-		----* (resolve @(Picker Objective)
+		----* resolve @(Picker Objective)
 			<--- display_picker True
 			<--- putStrLn --> record "No objectives found"
-			<--- picker)
-display (Adoption (Flip (filter :*: picker))) = void 
+			<--- picker
+display (Adoption (picker :*: filter)) = void 
 	<----- display_filter True filter
 		----* resolve @(Picker Objective)
 			<--- display_picker False
@@ -78,7 +101,7 @@ display_picker focus (Turnover objectives) = void <-- do
 
 eventloop :: Search ()
 eventloop = loop <----- handle 
-	===<< adapt . display =<< current @Texture 
+	===<< adapt . display =<< current @Texture'
 		---* adapt keypress
 
 keypress :: IO ASCII
