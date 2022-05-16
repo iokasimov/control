@@ -21,8 +21,6 @@ import Control.Utils (keystroke, to_list, to_zipper, letter_to_char)
 type Filter = List Letter
 type Result = Picker Objective
 
-type (:*+*:) l r = (l :*: r) :+: (r :*: l)
-
 switch :: l :*+*: r -> l :*+*: r
 switch (Option (l :*: r)) = Adoption (r :*: l)
 switch (Adoption (r :*: l)) = Option (l :*: r)
@@ -33,39 +31,35 @@ type Search = Provision Connection :> State Texture :> Conclusion Objective :> I
 handle :: ASCII -> Search ()
 handle (Control HT) = void <-- change @Texture switch
 handle (Control VT) = choose_objective =<< current @Texture
-handle key = update_objectives_list key =<< current @Texture
+handle key = update_objectives_list key
 
 choose_objective :: Texture -> Search ()
 choose_objective (Option (filter :*: Just (Turnover picker))) = failure <-- extract picker
 choose_objective _ = point ()
 
--- TODO: this code is completely mess, we need to refactor it
--- cause I have hard time to understand its logic
-update_objectives_list :: ASCII -> Texture -> Search ()
-update_objectives_list key (Option (filter :*: Just picker)) =
-	void <------ lift . wrap <----- zoom @Texture
-		<---- perhaps @(Filter :*: Maybe Result) >>> access @(Maybe Result) >>> primary
-		<---- overlook . overlook . change . constant <-- change_picker key picker
-update_objectives_list key (Adoption (_ :*: filter)) = void <--------
-	lift . wrap . zoom @Texture
+-- It would be nice if we could use Alternative instead of Applicative for branching
+-- Maybe it would be possible to do with prisms
+update_objectives_list :: ASCII -> Search ()
+update_objectives_list key =
+	-- Objectives are in focus
+	void . lift . wrap .:.. zoom @Texture
+		<--- perhaps @(Filter :*: Maybe Result) >>> access @(Maybe Result)
+		<--- overlook . overlook . definitely <-- case key of
+			Letter Lower J -> slide @Right
+			Letter Lower K -> slide @Left
+			_ -> pass
+	-- Input field for filtering is focused
+	------* void . lift . wrap . zoom @Texture
 		(perhaps @(Maybe Result :*: Filter) >>> access @(Maybe Result))
 		. overlook . change @(Maybe Result) . constant
-	======<< identity ======<< adapt .:.. reload_objectives_by_filter_
-		<-|---- provided @Connection
-		<-*---- lift . wrap .:.. zoom @Texture
-			<---- perhaps @(Maybe Result :*: Filter) >>> access @Filter
-			<---- overlook (change @Filter . constant <-- change_filter key filter ---* current @Filter)
-
--- TODO: think about caching with prefixed tree where key is a searching pattern
-change_filter :: ASCII -> List Letter -> List Letter
-change_filter (Letter _ letter) = item @Push letter
-change_filter (Control DEL) = morph @Pop
-change_filter _ = identity
-
-change_picker :: ASCII -> Picker Objective -> Picker Objective
-change_picker (Letter Lower J) = rotate @Right
-change_picker (Letter Lower K) = rotate @Left
-change_picker _ = identity
+		====<< identity ====<< adapt .:.. reload_objectives_by_filter_
+			<-|-- provided @Connection
+			<-*-- lift . wrap .:.. zoom @Texture
+				<--- perhaps @(Maybe Result :*: Filter) >>> access @Filter
+				<--- overlook <-- case key of
+					Letter _ letter -> push @List letter -* current @Filter
+					Control DEL -> pop @List -* current @Filter
+					_ -> current @Filter
 
 display :: Texture -> IO ()
 display (Option (filter :*: picker)) = void
